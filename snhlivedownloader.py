@@ -66,6 +66,7 @@ class snh48_video:
         self.m3u8_url = ''
         self.site_url = ''
         self.ts_list = {}
+        self.img_url = ''
 
     def update(self, args):
         if not args:
@@ -85,6 +86,10 @@ class snh48_video:
                     self.ts_list = args['ts_list']
                 else:
                     print("Warning: key %s not found in snh48_video" % k_args)
+
+    def addimgurl(self,imgurl):
+        if not imgurl:
+            self.img_url = imgurl
 
     def write_tslist(self,path):
         if not path:
@@ -110,9 +115,7 @@ class snh48_video:
             # create directory
             path = path + os.path.sep + self.title + os.path.sep  + RESOLUTION
 
-            try:
-                os.stat(path + os.path.sep + 'tmp')
-            except:
+            if not os.path.isdir(path + os.path.sep + 'tmp'):
                 os.makedirs(path + os.path.sep +'tmp')
 
 
@@ -225,13 +228,6 @@ def list_directory(input_path, hidden=None):
 
 # 合并ts文件
 def merge_ts(path):
-    try:
-        import os
-        import shutil
-    except ImportError:
-        print("import os/shutil error")
-        sys.exit(1)
-
     print("手动合并ts文件,请选择工作文件夹")
     menu_list = list_directory(path)
     working_path = ''
@@ -274,13 +270,6 @@ def merge_ts(path):
 # 解析m3u8文件
 def _get_ts_from_m3u8(m3u8_url):
     global error_msg
-
-    try:
-        import requests
-        from lxml import etree
-    except ImportError:
-        print("import requests, lxml Error")
-        sys.exit(1)
 
     if not "m3u8" in m3u8_url:
         print('_get_ts_from_m3u8 error: path contains no m3u8 tag')
@@ -552,7 +541,7 @@ def spider_snhLive():
     print("工作文件夹: %s" % working_path)
 
     if SHOW == '1':
-        menu_list = list_directory(working_path)
+        list_directory(working_path)
         sys.exit()
 
     if not os.path.isdir(working_path) and SINGLE_CONTINUE == '0' and RE_DOWNLOAD == '0':
@@ -692,6 +681,7 @@ def spider_snhLive():
                 if bool(parsed):
                     video_obj = snh48_video()
                     video_obj.update(parsed)
+                    video_obj.addimgurl(video_img)
                     video_list.append(video_obj)
 
                     port_csv.writerow([video_obj.title, video_obj.info, video_obj.site_url,video_obj.m3u8_url])
