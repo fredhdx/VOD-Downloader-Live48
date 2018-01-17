@@ -1,27 +1,22 @@
 #!/usr/bin/python3
-"下载live.snh48.com历史视频"
-"           + 采用python3: requests库"
-"  　　     + 支持断点续传"
-"           + 可选择单个视频或爬取所有视频"
-"           + 可选取清晰度"
-"           + 可输出m3u8片段列表(需要简单修改参数)"
-""
-""
-"参考: https://github.com/ShizukuIchi/avgle-downloader/"
-"      https://pypi.python.org/pypi/m3u8"
-"      https://github.com/huzhenjie/m3u8_downloader"
-"      https://gist.github.com/vladignatyev/ "
+# coding:utf-8 #
 """
-TO DO:
-    - complete error message handling
-    - better ConnectionError handling
-    - save live-streaming
+    下载live.snh48.com历史视频"
+              + 采用python3: requests库"
+     　　     + 支持断点续传"
+              + 可选择单个视频或爬取所有视频"
+              + 可选取清晰度"
+              + 可输出m3u8片段列表(需要简单修改参数)"
+
+    参考: https://github.com/ShizukuIchi/avgle-downloader/"
+          https://pypi.python.org/pypi/m3u8"
+          https://github.com/huzhenjie/m3u8_downloader"
+          https://gist.github.com/vladignatyev/ "
 """
 
 import os,sys,csv
 import time
 import requests
-from requests import ConnectionError
 import shutil
 from lxml import etree
 
@@ -155,7 +150,7 @@ class snh48_video:
                         try:
                             r = requests.get(ts_file['ts_url'], stream=True)
                             break
-                        except ConnectionError:
+                        except requests.ConnectionError:
                             if time.time() > start_time + connection_timeout:
                                 raise Exception('Unable to connect %s after %s seconds of ConnectionErrors' \
                                         % (ts_file['title'],connection_timeout))
@@ -230,7 +225,6 @@ def list_directory(input_path, hidden=None):
 def merge_ts(path):
     print("手动合并ts文件,请选择工作文件夹")
     menu_list = list_directory(path)
-    working_path = ''
 
     while True:
         choice = input("选择文件夹(选0退出): ")
@@ -280,7 +274,7 @@ def _get_ts_from_m3u8(m3u8_url):
         try:
             r = requests.get(m3u8_url, headers=header)
             break
-        except ConnectionError:
+        except requests.ConnectionError:
             if time.time() > start_time + connection_timeout:
                 raise Exception("Unable to get m3u8 list %s \nafter %s seconds of ConnectionErrors" \
                         % (m3u8_url,connection_timeout))
@@ -311,11 +305,6 @@ def _get_ts_from_m3u8(m3u8_url):
 
 # 自动继续下载已存在视频
 def _continue_download(path):
-    try:
-        import os
-    except ImportError:
-        print("import os error")
-        sys.exit(1)
 
     menu_list = list_directory(path, hidden="tmp")
 
@@ -373,11 +362,6 @@ def _continue_download(path):
 
 # 重新下载已存在视频
 def _force_redownload(path):
-    try:
-        import os
-    except ImportError:
-        print("import os error")
-        sys.exit(1)
 
     menu_list = list_directory(path, hidden="tmp")
     working_path = ''
@@ -453,7 +437,7 @@ def _get_downloadable_from_url(video_url, resolution):
         try:
             r = requests.get(video_url,headers=header)
             break
-        except ConnectionError:
+        except requests.ConnectionError:
             if time.time() > start_time + connection_timeout:
                 raise Exception("Unable to get video_url %s \nafter %s seconds of ConnectionErrors" \
                         % (video_url,connection_timeout))
@@ -622,7 +606,7 @@ def spider_snhLive():
             try:
                 r = requests.get(site_url,headers=header)
                 break
-            except ConnectionError:
+            except requests.ConnectionError:
                 if time.time() > start_time + connection_timeout:
                     raise Exception("Unable to get %s \nafter %s seconds of ConnectionErrors" \
                             % (site_url,connection_timeout))
@@ -690,9 +674,7 @@ def spider_snhLive():
                         video_obj.write_tslist(working_path + os.path.sep + 'M3U8')
 
                     if DOWNLOAD == '1':
-                        try:
-                            os.stat(working_path + os.path.sep + '视频')
-                        except:
+                        if not os.path.isdir(working_path + os.path.sep + '视频'):
                             os.makedirs(working_path + os.path.sep + '视频')
 
                         video_obj.download(working_path + os.path.sep + '视频')
