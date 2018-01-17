@@ -34,6 +34,7 @@ header = {
 
 
 SINGLE = '0'
+SINGLE_CONTINUE = '0'
 DOWNLOAD = '1'
 RESOLUTION = 'chaoqing'
 SNH48LIVE_API = "http://live.snh48.com"
@@ -112,6 +113,19 @@ class snh48_video:
             except:
                 os.makedirs(path + os.path.sep +'tmp')
 
+
+            # create or update info.txt to save parsed info
+            ipath = path + os.path.sep + "info.txt"
+            with open(ipath,'w') as f:
+                f.write("video_url: %s\n" % self.site_url)
+                f.write("title: %s\n" % self.title)
+                f.write("info: %s\n" % self.info)
+                f.write("m3u8_url: %s\n" % self.m3u8_url)
+                f.write("resolution: %s" % RESOLUTION)
+
+            # write ts list
+            self.write_tslist(path)
+
             # download file
             index = 1
             ts_list_len = len(self.ts_list)
@@ -120,8 +134,15 @@ class snh48_video:
                 tmp_name = path + os.path.sep + 'tmp' + os.path.sep + self.title + '_' + str(index) + '.ts'
 
                 progressbar(index, ts_list_len, status="正在写入: %s/%d" % (tmp_name.rsplit(os.path.sep)[-1],len(self.ts_list)))
-                if not os.path.isfile(tmp_name):
 
+                # check file exist
+                # 总是试图下载上次停止的最后一个文件
+                file_exist = os.path.isfile(tmp_name)
+                file_index = self.ts_list.index(ts_file) + 1
+                existing_count = len([name for name in os.listdir('.')
+                                if (os.path.isfile(name) and ".ts" in name)])
+
+                if (not file_exist) or (file_exist and file_index == existing_count):
                     start_time = time.time()
                     while True:
                         try:
@@ -137,7 +158,8 @@ class snh48_video:
                     if r.status_code == 200:
                         with open(tmp_name,'wb') as f:
                             for chunk in r.iter_content(chunk_size=512 * 1024):
-                                f.write(chunk)
+                                if chunk:
+                                    f.write(chunk)
                     else:
                         print("\nsnh48_video.download: write_ts: connection error")
                         sys.exit(1)
@@ -158,8 +180,11 @@ class snh48_video:
                 print('Merge failed for %s' % self.title)
 
 # 显示目录树
-def list_directory(input_path):
-    startpath = os.getcwd()
+def list_directory(input_path, hidden=""):
+    startpath = os.getcwd() if not input_path else input_path
+    if not os.path.isdir(startpath):
+        print("显示目录树:文件夹不存在 %s" % startpath)
+        sys.exit(1)
     MAX_WIDTH = 100
     print()
     print('#' * MAX_WIDTH)
@@ -182,7 +207,8 @@ def list_directory(input_path):
                 _menu_item = _menu_item + ' ' + ' ' * separator + ' ' + file_word
 
             menu_list.append({'root':root,'dirs':dirs, 'files':files})
-            print(_menu_item)
+            if hidden and (hidden not in _menu_item):
+                print(_menu_item)
 
     _menu_item = '# {}. {}{} (custom)/'.format(index, '', input_path)
     menu_list.append({'root':input_path, 'dirs':[],'files':[]})
@@ -200,7 +226,7 @@ def merge_ts(path):
         sys.exit(1)
 
     print("手动合并ts文件,请选择工作文件夹")
-    menu_list = list_directory(os.getcwd())
+    menu_list = list_directory(path)
     working_path = ''
 
     while True:
@@ -287,9 +313,59 @@ def _get_ts_from_m3u8(m3u8_url):
 
     return ts_list
 
+# 选择继续下载视频
+def _continue_download(path):
+    try:
+        import os
+    except ImportError:
+        print("import os error")
+        sys.exit(1)
+
+    menu_list = list_directory(path, hidden="tmp")
+    working_path = ''
+
+    _chosen = ""
+    while True:
+        choice = input("请选择'清晰度'层级,如: gaoqing\n选择文件夹(选0退出):")
+        if choice == '0': sys.exit()
+        elif choice in [str(i) for i in range(1,len(menu_list))]:
+            _chosen = menu_list[int(choice)-1]['root']
+
+            tmp_path = _chosen + os.path.sep + "tmp"
+            if (os.path.isdir(tmp_path) and len([name for name in os.listdir(tmp_path)
+                            if (os.path.isfile(name) and '.ts' in name)]) > 0):
+                print(_chosen)
+                break
+            else:
+                print("自动断点续传: 没找到《%s》ts临时文件，请检查已下载部分是否存在\n" %
+                        _chosen.split(os.path.sep)[-2])
+                sys.exit()
+
+    info_file = _chosen + os.path.sep + "info.txt"
+    url = ""
+    res = ""
+    if os.path.isfile(info_file):
+        with open(info_file,'r') as f:
+            for line in f.readlines():
+                if "video_url" in line:
+                    url = line.split(": ")[1].strip()
+                if "resolution" in line:
+                    res = line.split(": ")[1].strip()
+
+            print("为《%s》找到链接：%s at %s" % (_chosen.split(os.path.sep)[-2],url, res))
+    else:
+        print("自动断点续传: 没找到《%s》info.txt信息文件，请检查已下载部分是否存在\n"
+                % _chosen.split(os.path.sep)[-2])
+        sys.exit()
+
+    if "live.snh48.com" in url:
+        return [url,res]
+    else:
+        print("自动断点续传: 没找到《%s》有效链接，请手动输入网址\n" % _chosen.split(os.path.sep)[-2])
+        sys.exit()
+
 # 解析单个视频
 def _get_downloadable_from_url(video_url, resolution):
-
     global RESOLUTION
     global error_msg
 
@@ -352,18 +428,23 @@ def spider_snhLive():
     global DOWNLOAD
     global RESOLUTION
     global SINGLE
+    global SINGLE_CONTINUE
     global error_msg
     global M3U8
 
     print("爬取live.snh48视频?(默认：全网)")
     print("--------------------------------------------------------------")
-    print("1. 单个视频 2.网站")
+    print("1. 单个视频 2.网站 3.自动断点续传")
     choice = input("您的选择:")
     if choice == '1':
         SINGLE = '1'
+        print("爬取: 单个视频")
+    elif choice == '3':
+        SINGLE_CONTINUE = '1'
+        print("自动断点续传")
     else:
         SINGLE = '0'
-    print("爬取：%s" % "网站" if SINGLE != '1' else "单个视频")
+        print("爬取: 网站")
 
     print("--------------------------------------------------------------")
     choice = input("工作文件夹（当前 + 输入, 默认 /snh48live）:")
@@ -374,41 +455,49 @@ def spider_snhLive():
         working_path = os.getcwd() + os.path.sep + choice
     print("工作文件夹: %s" % working_path)
 
-    try:
-        os.stat(working_path)
-    except:
-        os.makedirs(working_path)
+    if not os.path.isdir(working_path) and SINGLE_CONTINUE == '0':
+        choice = input("工作文件夹不存在，是否创立: 1.是 2.否（默认）")
+        if choice == '1':
+            os.makedirs(working_path)
+        else:
+            sys.exit()
+    elif not os.path.isdir(working_path) and SINGLE_CONTINUE == '1':
+        print("工作文件夹不存在，退出")
+        sys.exit()
 
-    print("--------------------------------------------------------------")
-    print("下载视频？(默认:是)")
-    print("1. 是 2.否")
-    choice = input("选择:")
-    if choice == "2":
-        DOWNLOAD = '0'
-    else:
-        DOWNLOAD = '1'
-
-
-    print("--------------------------------------------------------------")
-    print("选择清晰度？(未输入默认为:超清)")
-    print("1. 超清 2.高清 3.流畅")
-    choice = input("选择:")
-    if choice == '2':
-        RESOLUTION = 'gaoqing'
-    elif choice == '3':
-        RESOLUTION = 'liuchang'
-    else:
-        RESOLUTION = 'chaoqing'
-    print("清晰度: %s" % RESOLUTION)
+    if SINGLE_CONTINUE == '0':
+        print("--------------------------------------------------------------")
+        print("下载视频？(默认:是)")
+        print("1. 是 2.否")
+        choice = input("选择:")
+        if choice == "2":
+            DOWNLOAD = '0'
+        else:
+            DOWNLOAD = '1'
 
 
-    if SINGLE == '1':
+        print("--------------------------------------------------------------")
+        print("选择清晰度？(未输入默认为:超清)")
+        print("1. 超清 2.高清 3.流畅")
+        choice = input("选择:")
+        if choice == '2':
+            RESOLUTION = 'gaoqing'
+        elif choice == '3':
+            RESOLUTION = 'liuchang'
+        else:
+            RESOLUTION = 'chaoqing'
+        print("清晰度: %s" % RESOLUTION)
+
+    if SINGLE_CONTINUE == '1':
+        video_url, RESOLUTION = _continue_download(working_path)
+    elif SINGLE == '1':
         print("--------------------------------------------------------------")
         video_url = input("请输入单个视频地址(live.snh48.com):")
         if not video_url:
             print("需要输入视频地址,请重新开始")
             sys.exit(1)
 
+    if SINGLE == '1' or SINGLE_CONTINUE == '1':
         parsed = _get_downloadable_from_url(video_url, RESOLUTION)
         if bool(parsed):
             video_obj = snh48_video()
