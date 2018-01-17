@@ -35,6 +35,7 @@ header = {
 
 SINGLE = '0'
 SINGLE_CONTINUE = '0'
+RE_DOWNLOAD = '0'
 DOWNLOAD = '1'
 RESOLUTION = 'chaoqing'
 SNH48LIVE_API = "http://live.snh48.com"
@@ -131,7 +132,10 @@ class snh48_video:
             ts_list_len = len(self.ts_list)
             tsNames = []
             for ts_file in self.ts_list:
+                tmp_path = path + os.path.sep + 'tmp'
                 tmp_name = path + os.path.sep + 'tmp' + os.path.sep + self.title + '_' + str(index) + '.ts'
+                tmp_files = [name for name in os.listdir(tmp_path)
+                                if (os.path.isfile(os.path.join(tmp_path, name)))]
 
                 progressbar(index, ts_list_len, status="正在写入: %s/%d" % (tmp_name.rsplit(os.path.sep)[-1],len(self.ts_list)))
 
@@ -139,8 +143,7 @@ class snh48_video:
                 # 总是试图下载上次停止的最后一个文件
                 file_exist = os.path.isfile(tmp_name)
                 file_index = self.ts_list.index(ts_file) + 1
-                existing_count = len([name for name in os.listdir('.')
-                                if (os.path.isfile(name) and ".ts" in name)])
+                existing_count = len([name for name in tmp_files if name.endswith('.ts')])
 
                 if (not file_exist) or (file_exist and file_index == existing_count):
                     start_time = time.time()
@@ -313,7 +316,7 @@ def _get_ts_from_m3u8(m3u8_url):
 
     return ts_list
 
-# 选择继续下载视频
+# 自动继续下载已存在视频
 def _continue_download(path):
     try:
         import os
@@ -332,8 +335,9 @@ def _continue_download(path):
             _chosen = menu_list[int(choice)-1]['root']
 
             tmp_path = _chosen + os.path.sep + "tmp"
-            if (os.path.isdir(tmp_path) and len([name for name in os.listdir(tmp_path)
-                            if (os.path.isfile(name) and '.ts' in name)]) > 0):
+            tmp_files = [name for name in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path,name))]
+            tmp_files = [name for name in tmp_files if name.endswith('.ts')]
+            if (os.path.isdir(tmp_path) and len(tmp_files) > 0):
                 print(_chosen)
                 break
             else:
@@ -358,11 +362,93 @@ def _continue_download(path):
                 % _chosen.split(os.path.sep)[-2])
         sys.exit()
 
-    if "live.snh48.com" in url:
-        return [url,res]
-    else:
+    if not "live.snh48.com" in url:
         print("自动断点续传: 没找到《%s》有效链接，请手动输入网址\n" % _chosen.split(os.path.sep)[-2])
         sys.exit()
+
+    parsed = _get_downloadable_from_url(url,res)
+    parsed_title = parsed['title']
+    if parsed_title != _chosen.split(os.path.sep)[-2]:
+        print("自动断点续传：已存在视频和远程视频不一致")
+        print("------------------  有可能覆盖错误视频")
+        print("请检查info.txt中的网址是否指向目标视频")
+        print("已存在：%s" % _chosen.split(os.path.sep)[-2])
+        print("远程文件：%s" % parsed_title)
+        print("退出")
+        sys.exit()
+
+    return [url,res]
+
+# 重新下载已存在视频
+def _force_redownload(path):
+    try:
+        import os
+    except ImportError:
+        print("import os error")
+        sys.exit(1)
+
+    menu_list = list_directory(path, hidden="tmp")
+    working_path = ''
+
+    _chosen = ""
+    while True:
+        choice = input("请选择'清晰度'层级,如: gaoqing\n选择文件夹(选0退出):")
+        if choice == '0': sys.exit()
+        elif choice in [str(i) for i in range(1,len(menu_list))]:
+            _chosen = menu_list[int(choice)-1]['root']
+            break
+
+    info_file = _chosen + os.path.sep + "info.txt"
+    url = ""
+    res = ""
+    if os.path.isfile(info_file):
+        with open(info_file,'r') as f:
+            for line in f.readlines():
+                if "video_url" in line:
+                    url = line.split(": ")[1].strip()
+                if "resolution" in line:
+                    res = line.split(": ")[1].strip()
+
+            print("为《%s》找到链接：%s at %s" % (_chosen.split(os.path.sep)[-2],url, res))
+    else:
+        print("重新下载已存在视频: 没找到《%s》info.txt信息文件，请通过单个视频选项下载\n"
+                % _chosen.split(os.path.sep)[-2])
+        sys.exit()
+
+    if not "live.snh48.com" in url:
+        print("重新下载已存在视频: 没找到《%s》有效链接，请检查信息文件\n" % _chosen.split(os.path.sep)[-2])
+        sys.exit()
+
+    parsed = _get_downloadable_from_url(url,res)
+    parsed_title = parsed['title']
+    if parsed_title != _chosen.split(os.path.sep)[-2]:
+        print("重新下载已存在视频：已存在的视频和远程视频不一致")
+        print("------------------  有可能覆盖错误视频")
+        print("请检查info.txt中的网址是否指向目标视频")
+        print("已存在：%s" % _chosen.split(os.path.sep)[-2])
+        print("远程文件：%s" % parsed_title)
+        print("退出")
+        sys.exit()
+
+    tmp_path = _chosen + os.path.sep + "tmp"
+    if os.path.isdir(tmp_path):
+        choice = input("警告：重新下载《%s》-%s 视频将删除tmp文件夹所有下载片段\n1.继续 2.退出(默认)"
+                % (_chosen.split(os.path.sep)[-2], res))
+        if choice == '1':
+            tmp_files = [name for name in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path,name))]
+            tmp_files = [os.path.join(tmp_path,name) for name in tmp_files]
+            for _file in tmp_files:
+                try:
+                    os.remove(_file)
+                except OSError as e:
+                    print(e)
+                    sys.exit(1)
+            print("tmp文件夹已清空")
+        else:
+            print("退出")
+            sys.exit()
+    return [url,res]
+
 
 # 解析单个视频
 def _get_downloadable_from_url(video_url, resolution):
@@ -429,12 +515,13 @@ def spider_snhLive():
     global RESOLUTION
     global SINGLE
     global SINGLE_CONTINUE
+    global RE_DOWNLOAD
     global error_msg
     global M3U8
 
     print("爬取live.snh48视频?(默认：全网)")
     print("--------------------------------------------------------------")
-    print("1. 单个视频 2.网站 3.自动断点续传")
+    print("1. 单个视频 2.网站 3.自动断点续传 4.重新下载已存在视频")
     choice = input("您的选择:")
     if choice == '1':
         SINGLE = '1'
@@ -442,6 +529,9 @@ def spider_snhLive():
     elif choice == '3':
         SINGLE_CONTINUE = '1'
         print("自动断点续传")
+    elif choice == '4':
+        RE_DOWNLOAD = '1'
+        print('重新下载已存在视频')
     else:
         SINGLE = '0'
         print("爬取: 网站")
@@ -455,17 +545,17 @@ def spider_snhLive():
         working_path = os.getcwd() + os.path.sep + choice
     print("工作文件夹: %s" % working_path)
 
-    if not os.path.isdir(working_path) and SINGLE_CONTINUE == '0':
+    if not os.path.isdir(working_path) and SINGLE_CONTINUE == '0' and RE_DOWNLOAD == '0':
         choice = input("工作文件夹不存在，是否创立: 1.是 2.否（默认）")
         if choice == '1':
             os.makedirs(working_path)
         else:
             sys.exit()
-    elif not os.path.isdir(working_path) and SINGLE_CONTINUE == '1':
+    elif not os.path.isdir(working_path) and (SINGLE_CONTINUE == '1' or RE_DOWNLOAD == '1'):
         print("工作文件夹不存在，退出")
         sys.exit()
 
-    if SINGLE_CONTINUE == '0':
+    if SINGLE_CONTINUE == '0' and RE_DOWNLOAD == '0':
         print("--------------------------------------------------------------")
         print("下载视频？(默认:是)")
         print("1. 是 2.否")
@@ -490,6 +580,8 @@ def spider_snhLive():
 
     if SINGLE_CONTINUE == '1':
         video_url, RESOLUTION = _continue_download(working_path)
+    elif RE_DOWNLOAD == '1':
+        video_url, RESOLUTION = _force_redownload(working_path)
     elif SINGLE == '1':
         print("--------------------------------------------------------------")
         video_url = input("请输入单个视频地址(live.snh48.com):")
@@ -497,7 +589,7 @@ def spider_snhLive():
             print("需要输入视频地址,请重新开始")
             sys.exit(1)
 
-    if SINGLE == '1' or SINGLE_CONTINUE == '1':
+    if SINGLE == '1' or SINGLE_CONTINUE == '1' or RE_DOWNLOAD == '1':
         parsed = _get_downloadable_from_url(video_url, RESOLUTION)
         if bool(parsed):
             video_obj = snh48_video()
