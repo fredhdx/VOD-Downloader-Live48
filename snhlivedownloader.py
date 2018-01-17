@@ -329,7 +329,6 @@ def _continue_download(path):
         sys.exit(1)
 
     menu_list = list_directory(path, hidden="tmp")
-    working_path = ''
 
     _chosen = ""
     while True:
