@@ -5,12 +5,12 @@
 ## 功能/Feature
 
     + 支持断点续传/ Download from where you left
-    + \[使用\]可选择单个视频或爬取所有视频/ Single Video Mode or Full Download
+    + [使用]可选择单个视频或爬取所有视频/ Single Video Mode or Full Download
     + 可选取清晰度/ Choose resolution (if provided by source)
     + 可输出m3u8片段列表(需要简单修改参数)/ .m3u8 file export supported(just change M3U8 variable)
     + 添加手动合并ts文件功能（需要import as module)
-    + \[使用\]从已存在项目中自动选择断点续传/choose from existing downloads to continue
-    + \[使用\]重新下载已存在项目/re-download existing video (WILL CLEAR OLD FILES!)
+    + [使用]从已存在项目中自动选择断点续传/choose from existing downloads to continue
+    + [使用]重新下载已存在项目/re-download existing video (WILL CLEAR OLD FILES!)
 
 ## 使用方法(Linux/Windows)/ Usage:     
 
@@ -22,9 +22,6 @@
 ## 关于直播下载
 > python对于直播流下载功能支持并不好，并且使用python内建库下载直播文件分段、检查可用都有问题，所以就不在此实现。直播流下载储存推荐使用vlc或者ffmpeg(强留推荐，自动分块)或其他软件进行下载。
 
-
-## 等待完善/TO DO:
-    - complete error message handling
 
 ## 参考/ Reference
     + https://github.com/ShizukuIchi/avgle-downloader/
