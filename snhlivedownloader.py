@@ -364,7 +364,6 @@ def _continue_download(path):
 def _force_redownload(path):
 
     menu_list = list_directory(path, hidden="tmp")
-    working_path = ''
 
     _chosen = ""
     while True:
@@ -647,9 +646,7 @@ def spider_snhLive():
                 sys.exit(1)
 
             if M3U8 == '1':
-                try:
-                    os.stat(working_path + os.path.sep + 'M3U8')
-                except:
+                if os.path.isdir(working_path + os.path.sep + 'M3U8'):
                     os.makedirs(working_path + os.path.sep + 'M3U8')
 
             index = 1
