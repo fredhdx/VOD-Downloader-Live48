@@ -34,6 +34,7 @@ header = {
 
 
 SINGLE = '0'
+SHOW = '0'
 SINGLE_CONTINUE = '0'
 RE_DOWNLOAD = '0'
 DOWNLOAD = '1'
@@ -183,7 +184,7 @@ class snh48_video:
                 print('Merge failed for %s' % self.title)
 
 # 显示目录树
-def list_directory(input_path, hidden=""):
+def list_directory(input_path, hidden=None):
     startpath = os.getcwd() if not input_path else input_path
     if not os.path.isdir(startpath):
         print("显示目录树:文件夹不存在 %s" % startpath)
@@ -210,7 +211,10 @@ def list_directory(input_path, hidden=""):
                 _menu_item = _menu_item + ' ' + ' ' * separator + ' ' + file_word
 
             menu_list.append({'root':root,'dirs':dirs, 'files':files})
-            if hidden and (hidden not in _menu_item):
+            if hidden is not None:
+                if hidden not in _menu_item:
+                    print(_menu_item)
+            else:
                 print(_menu_item)
 
     _menu_item = '# {}. {}{} (custom)/'.format(index, '', input_path)
@@ -511,6 +515,7 @@ def _get_downloadable_from_url(video_url, resolution):
 # 下载live.snh视频
 def spider_snhLive():
 
+    global SHOW
     global DOWNLOAD
     global RESOLUTION
     global SINGLE
@@ -521,9 +526,11 @@ def spider_snhLive():
 
     print("爬取live.snh48视频?(默认：全网)")
     print("--------------------------------------------------------------")
-    print("1. 单个视频 2.网站 3.自动断点续传 4.重新下载已存在视频")
+    print("1. 单个视频 2.网站 3.自动断点续传 4.重新下载已存在视频 5.查看已存在项目")
     choice = input("您的选择:")
-    if choice == '1':
+    if choice == '5':
+        SHOW = '1'
+    elif choice == '1':
         SINGLE = '1'
         print("爬取: 单个视频")
     elif choice == '3':
@@ -544,6 +551,10 @@ def spider_snhLive():
         choice = choice[1:] if choice[0] == os.path.sep else choice
         working_path = os.getcwd() + os.path.sep + choice
     print("工作文件夹: %s" % working_path)
+
+    if SHOW == '1':
+        menu_list = list_directory(working_path)
+        sys.exit()
 
     if not os.path.isdir(working_path) and SINGLE_CONTINUE == '0' and RE_DOWNLOAD == '0':
         choice = input("工作文件夹不存在，是否创立: 1.是 2.否（默认）")
