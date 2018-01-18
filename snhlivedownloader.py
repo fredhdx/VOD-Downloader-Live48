@@ -19,7 +19,6 @@ import sys
 import csv
 import time
 import requests
-import platform
 import shutil
 import re
 import util
