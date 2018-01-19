@@ -600,7 +600,7 @@ def spider_snhLive():
         LOGGER.info('6. 合并ts文件')
     else:
         SINGLE = '0'
-        LOGGER.info("0. 爬取网站")
+        LOGGER.info("2. 爬取网站")
 
     LOGGER.info("--------------------------------------------------------------")
     choice = input("工作文件夹（当前 + 输入, 默认 /snh48live）:")
