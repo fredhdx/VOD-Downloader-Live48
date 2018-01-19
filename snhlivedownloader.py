@@ -678,7 +678,7 @@ def spider_snhLive():
 
             # print info
             outline = 'title: ' + video_obj.title + '\ninfo: ' + video_obj.info \
-                    + '\nfname: ' + fname \
+                    + '\nfname: ' + video_obj.fname \
                     + '\nurl: ' + video_obj.site_url + '\nm3u8_url: ' + video_obj.m3u8_url
             LOGGER.info(outline)
     else:
@@ -726,18 +726,10 @@ def spider_snhLive():
 
         # csv总结文件(总是写出)
         csvfilename = working_path + os.path.sep + 'snh48live.csv'
-        if os.path.isfile(csvfilename):
-            try:
-                backupfile = (os.path.sep.join(csvfilename.split(os.path.sep)[:-1])
-                        + os.path.sep + 'snh48live-backup-' + datetime.now().strftime('%Y%m%d%H%M') + '.csv')
-                os.rename(csvfilename, backupfile)
-            except OSError as e:
-                LOGGER.info(e)
-                LOGGER.info("snhlive.csv文件备份出错，请检查")
 
-        if (VIDEO_START > 1 or PAGE_START > 1):
+        if (VIDEO_START > 1 or PAGE_START > 1) and os.path.isfile(csvfilename):
             csvfile = open(csvfilename, 'at')
-            port_csv = csv.writer(f)
+            port_csv = csv.writer(csvfile)
         else:
             csvfile = open(csvfilename, 'wt')
             port_csv = csv.writer(csvfile)
@@ -791,6 +783,7 @@ def spider_snhLive():
                         LOGGER.debug("开始下载")
                         video_obj.download(working_path)
                 index += 1
+
         csvfile.close()
 
 
