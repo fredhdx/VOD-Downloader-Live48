@@ -1,4 +1,7 @@
 snh48live/
 build/
-dist/
 __pycache__/
+log.txt
+log-old.txt
+snhlivedownloader.spec
+yourlog-basic.txt
