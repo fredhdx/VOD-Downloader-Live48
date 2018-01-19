@@ -587,7 +587,7 @@ def spider_snhLive():
         print('6. 合并ts文件')
     else:
         SINGLE = '0'
-        print("0. 爬取网站")
+        print("2. 爬取网站")
 
     print("--------------------------------------------------------------")
     choice = input("工作文件夹（当前 + 输入, 默认 /snh48live）:")
