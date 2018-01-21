@@ -18,7 +18,6 @@ import os
 import sys
 import shutil
 import csv
-import json
 import re
 import time
 from datetime import datetime
