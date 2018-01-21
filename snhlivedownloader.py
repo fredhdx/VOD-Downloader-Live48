@@ -462,8 +462,7 @@ def _continue_download(path, REDOWNLOAD=False):
         tmp_files = [name for name in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path, name))]
 
         if len([name for name in tmp_files if name.endswith('.ts')]) == 0:
-            LOGGER.info("没找到ts临时文件，开始新下载\n",
-                             _chosen.split(os.path.sep)[-2])
+            LOGGER.info("没找到ts临时文件，开始新下载\n")
         else:
             LOGGER.info(_chosen.replace(os.getcwd(),''))
             if REDOWNLOAD:
@@ -574,8 +573,6 @@ def spider_snhLive():
     global M3U8
 
     global LOGGER
-    LOGGER = logging.getLogger()
-
     reset_global()
 
     LOGGER.info("爬取live.snh48视频?(默认：全网)")
@@ -830,6 +827,6 @@ if __name__ == '__main__':
                 format="%(message)s",
                 filemode="w")
 
-
+    LOGGER = logging.getLogger()
     logging.info(datetime.now().strftime('%Y-%m-%d %H:%M'))
     main()
