@@ -60,8 +60,27 @@ def remove_nbws(text):
     text = text.replace(u'\u200B', '')
     # NBWS: Non-breaking space
     text = text.replace(u'\xa0', ' ')
+    # HalfWidth fullstop
+    text = text.replace(u'\uff61', '')
+    # Bullet
+    text = text.replace(u'\u2022', '')
     # White space
     text = text.replace(u'\t', ' ').replace(u'\r', ' ')
+
+    # General Punctuation
+    gpc_pattern = re.compile(r'[\u2000-\u206F]')
+    text = gpc_pattern.sub('', text)
+
+    # Mathematical Operator
+    mop_pattern = re.compile(r'[\u2200-\u22FF]')
+    text = mop_pattern.sub('', text)
+
+    # Combining Diacritical Marks
+    dcm_pattern = re.compile(r'[\u0300-\u036F]')
+    text = dcm_pattern.sub('', text)
+
+    lsp_pattern = re.compile(r'[\x80-\xFF]')
+    text = lsp_pattern.sub('', text)
 
     return text
 
