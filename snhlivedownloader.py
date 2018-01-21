@@ -44,12 +44,53 @@ RE_DOWNLOAD = '0'
 DOWNLOAD = '1'
 RESOLUTION = 'chaoqing'
 SNH48LIVE_API = "http://live.snh48.com"
+GNZ48LIVE_API = "http://live.gnz48.com"
+BEJ48LIVE_API = "http://live.bej48.com"
+SHY48LIVE_API = "http://live.shy48.com"
+CKG48LIVE_API = "http://live.ckg48.com"
 
 # 是否为每个视频解析ts地址
 M3U8 = '0'
 
 CONNECTION_TIMEOUT = 90
 ERROR_MSG = []
+
+# RESET VARIABLE
+def reset_global():
+    global SINGLE
+    global SHOW
+    global MERGE_TS
+    global SINGLE_CONTINUE
+    global RE_DOWNLOAD
+    global DOWNLOAD
+    global RESOLUTION
+    global M3U8
+
+    SINGLE = '0'
+    SHOW = '0'
+    MERGE_TS = '0'
+    SINGLE_CONTINUE = '0'
+    RE_DOWNLOAD = '0'
+    DOWNLOAD = '1'
+    RESOLUTION = 'chaoqing'
+    M3U8 = '0'
+
+# 按任意键退出
+def press_to_exit():
+    input("\n按任意键退出")
+    sys.exit()
+
+# Custom exception
+def MyExit():
+    main()
+
+def MyExit2():
+    while True:
+        choice = input("1. 返回 2. 退出")
+        if choice == "1":
+            main()
+        elif choice == "2":
+            press_to_exit()
 
 # 进度条
 def progressbar(count, total, status=''):
@@ -84,7 +125,7 @@ class snh48_video:
 
         if not args:
             LOGGER.info("Error: snh48_video.update(args): empty args")
-            sys.exit(1)
+            press_to_exit()
         else:
             for k_args in args:
                 if k_args == 'title':
@@ -116,7 +157,7 @@ class snh48_video:
 
         if not path:
             LOGGER.info("Error: snh48_video.write_tslist(path): empty path")
-            sys.exit(1)
+            press_to_exit()
         else:
             path = path + os.path.sep + self.fname + '.m3u8'
 
@@ -126,7 +167,7 @@ class snh48_video:
         except OSError as e:
             LOGGER.info(e)
             traceback.print_exc()
-            sys.exit(1)
+            press_to_exit()
 
         if not self.ts_list:
             LOGGER.info("Error: empty ts_list for %s %s", self.title, self.info)
@@ -142,7 +183,7 @@ class snh48_video:
 
         if not path:
             LOGGER.info("Error: snh48_video.download(path): empty path")
-            sys.exit(1)
+            press_to_exit()
         else:
             # create directory
             path = path + os.path.sep + self.fname + os.path.sep + RESOLUTION
@@ -201,7 +242,7 @@ class snh48_video:
                                     f.write(chunk)
                     else:
                         LOGGER.info("\nsnh48_video.download: write_ts: connection error")
-                        sys.exit(1)
+                        press_to_exit()
 
                 tsNames.append(tmp_name)
                 index += 1
@@ -225,7 +266,8 @@ def list_directory(input_path, hidden=None):
     startpath = os.getcwd() if not input_path else input_path
     if not os.path.isdir(startpath):
         LOGGER.info("显示目录树:文件夹不存在 %s",startpath)
-        sys.exit(1)
+        MyExit()
+
     MAX_WIDTH = 100
     print()
     print('#' * MAX_WIDTH)
@@ -279,10 +321,14 @@ def merge_ts(path):
     menu_list = list_directory(path)
 
     while True:
-        choice = input("选择文件夹(选0退出): ")
-        if choice == '0': break
+        choice = input("选择文件夹 (选 0 退出): ")
+        if choice == '0': MyExit()
         elif choice in [str(i) for i in range(1, len(menu_list))]:
             _chosen = menu_list[int(choice)-1]['root']
+
+            if not _chosen.endswith('tmp'):
+                    print("错误，目前仅支持合并/tmp文件夹\n")
+                    continue
 
             empty = '1'
             for fn in os.listdir(_chosen):
@@ -300,7 +346,7 @@ def merge_ts(path):
     # 开始合并
     if working_path == '':
         LOGGER.info("路径错误: %s", working_path)
-        sys.exit(1)
+        MyExit()
 
     files = [f for f in os.listdir(working_path) if f.endswith('.ts')]
     tsNames = sorted(files, key=lambda f: int(f.split('.')[0]))
@@ -320,7 +366,7 @@ def _get_ts_from_m3u8(m3u8_url):
 
     if not "m3u8" in m3u8_url:
         LOGGER.info('_get_ts_from_m3u8 error: path contains no m3u8 tag')
-        sys.exit(1)
+        press_to_exit()
 
     start_time = time.time()
     while True:
@@ -356,34 +402,21 @@ def _get_ts_from_m3u8(m3u8_url):
 
     return ts_list
 
-# 自动继续下载已存在视频
-def _continue_download(path):
+# 继续下载或重新下载已存在视频
+def _continue_download(path, REDOWNLOAD=False):
     global LOGGER
     menu_list = list_directory(path, hidden="tmp")
 
     _chosen = ""
     while True:
-        choice = input("请选择'清晰度'层级,如: gaoqing\n选择文件夹(选0退出):")
-        if choice == '0': sys.exit()
+        choice = input("请选择'清晰度'层级,如: gaoqing\n选择文件夹 (选 0 退出):")
+        if choice == '0':
+            MyExit()
         elif choice in [str(i) for i in range(1, len(menu_list))]:
             _chosen = menu_list[int(choice)-1]['root']
             break
 
-    tmp_path = _chosen + os.path.sep + "tmp"
-    if not os.path.isdir(tmp_path):
-        LOGGER.info("%s不包含tmp文件夹,请确认是否选择有效项目", _chosen.replace(os.getcwd(),''))
-        sys.exit()
-
-    tmp_files = [name for name in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path, name))]
-    tmp_files = [name for name in tmp_files if name.endswith('.ts')]
-
-    if len(tmp_files) > 0:
-        LOGGER.info(_chosen.replace(os.getcwd(),''))
-    else:
-        LOGGER.info("自动断点续传: 没找到《%s》ts临时文件，请检查已下载部分是否存在\n",
-              _chosen.split(os.path.sep)[-2])
-        sys.exit()
-
+    # 检查信息文件
     info_file = _chosen + os.path.sep + "info.txt"
     url = ""
     res = ""
@@ -397,94 +430,57 @@ def _continue_download(path):
 
             LOGGER.info("为《%s》找到链接：%s at %s", _chosen.split(os.path.sep)[-2], url, res)
     else:
-        LOGGER.info("自动断点续传: 没找到《%s》info.txt信息文件，请检查已下载部分是否存在\n"
+        LOGGER.info("没找到《%s》info.txt信息文件，请检查已下载部分是否存在\n"
               , _chosen.split(os.path.sep)[-2])
-        sys.exit()
+        MyExit()
 
-    if not "live.snh48.com" in url:
-        LOGGER.info("自动断点续传: 没找到《%s》有效链接，请手动输入网址\n", _chosen.split(os.path.sep)[-2])
-        sys.exit()
+    # 检查网址正确
+    valid_url = False
+    for site_url in [SNH48LIVE_API,BEJ48LIVE_API,CKG48LIVE_API,GNZ48LIVE_API,SHY48LIVE_API]:
+        valid_url = valid_url or site_url in url
+    if not valid_url:
+        LOGGER.info("断点续传: 没找到《%s》有效链接，请手动输入网址\n", _chosen.split(os.path.sep)[-2])
+        MyExit()
 
+    # 检查已下载文件名和远程文件名
     parsed = _get_downloadable_from_url(url, res)
     parsed_fname = parsed['fname']
     if parsed_fname != _chosen.split(os.path.sep)[-2]:
-        LOGGER.info("自动断点续传：已存在视频和远程视频不一致")
+        LOGGER.info("断点续传：已存在视频和远程视频不一致")
         LOGGER.info("------------------  有可能覆盖错误视频")
         LOGGER.info("请检查info.txt中的网址是否指向目标视频")
         LOGGER.info("已存在：%s", _chosen.split(os.path.sep)[-2])
         LOGGER.info("远程文件：%s", parsed_title)
-        LOGGER.info("退出")
-        sys.exit()
+        print("返回")
+        MyExit()
+
+    # 检查临时文件
+    tmp_path = _chosen + os.path.sep + "tmp"
+    if not os.path.isdir(tmp_path):
+        LOGGER.info("%s不包含tmp文件夹, 开始新下载", _chosen.replace(os.getcwd(),''))
+    else:
+        tmp_files = [name for name in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path, name))]
+
+        if len([name for name in tmp_files if name.endswith('.ts')]) == 0:
+            LOGGER.info("没找到ts临时文件，开始新下载\n")
+        else:
+            LOGGER.info(_chosen.replace(os.getcwd(),''))
+            if REDOWNLOAD:
+                choice = input("警告：重新下载《%s》-%s 视频将删除tmp文件夹所有下载片段\n1.继续 2.退出(默认) "
+                            % (_chosen.split(os.path.sep)[-2], res))
+                if choice == '1':
+                    tmp_files = [os.path.join(tmp_path,name) for name in tmp_files]
+                    for _file in tmp_files:
+                        try:
+                            os.remove(_file)
+                        except OSError as e:
+                            LOGGER.info(e)
+                            press_to_exit()
+                    LOGGER.info("tmp文件夹已清空")
+                else:
+                    MyExit()
 
     return [url, res]
-
-# 重新下载已存在视频
-def _force_redownload(path):
-    global LOGGER
-    menu_list = list_directory(path, hidden="tmp")
-
-    _chosen = ""
-    while True:
-        choice = input("请选择'清晰度'层级,如: gaoqing\n选择文件夹(选0退出):")
-        if choice == '0': sys.exit()
-        elif choice in [str(i) for i in range(1, len(menu_list))]:
-            _chosen = menu_list[int(choice)-1]['root']
-            break
-
-    tmp_path = _chosen + os.path.sep + "tmp"
-    if not os.path.isdir(tmp_path):
-        LOGGER.info("%s不包含tmp文件夹,请确认是否选择有效项目", _chosen.replace(os.getcwd(),''))
-        sys.exit()
-
-    info_file = _chosen + os.path.sep + "info.txt"
-    url = ""
-    res = ""
-    if os.path.isfile(info_file):
-        with open(info_file, 'r') as f:
-            for line in f.readlines():
-                if "video_url" in line:
-                    url = line.split(": ")[1].strip()
-                if "resolution" in line:
-                    res = line.split(": ")[1].strip()
-
-            LOGGER.info("为《%s》找到链接：%s at %s", _chosen.split(os.path.sep)[-2], url, res)
-    else:
-        LOGGER.info("重新下载已存在视频: 没找到《%s》info.txt信息文件，请通过单个视频选项下载\n"
-              , _chosen.split(os.path.sep)[-2])
-        sys.exit()
-
-    if not "live.snh48.com" in url:
-        LOGGER.info("重新下载已存在视频: 没找到《%s》有效链接，请检查信息文件\n", _chosen.split(os.path.sep)[-2])
-        sys.exit()
-
-    parsed = _get_downloadable_from_url(url, res)
-    parsed_fname = parsed['fname']
-    if parsed_fname != _chosen.split(os.path.sep)[-2]:
-        LOGGER.info("重新下载已存在视频：已存在的视频和远程视频不一致")
-        LOGGER.info("------------------  有可能覆盖错误视频")
-        LOGGER.info("请检查info.txt中的网址是否指向目标视频")
-        LOGGER.info("已存在：%s", _chosen.split(os.path.sep)[-2])
-        LOGGER.info("远程文件：%s", parsed_title)
-        LOGGER.info("退出")
-        sys.exit()
-
-    choice = input("警告：重新下载《%s》-%s 视频将删除tmp文件夹所有下载片段\n1.继续 2.退出(默认)"
-                   % (_chosen.split(os.path.sep)[-2], res))
-    if choice == '1':
-        tmp_files = [name for name in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path, name))]
-        tmp_files = [os.path.join(tmp_path,name) for name in tmp_files]
-        for _file in tmp_files:
-            try:
-                os.remove(_file)
-            except OSError as e:
-                LOGGER.info(e)
-                sys.exit(1)
-        LOGGER.info("tmp文件夹已清空")
-    else:
-        LOGGER.info("退出")
-        sys.exit()
-
-    return [url,res]
 
 
 # 解析单个视频
@@ -577,13 +573,16 @@ def spider_snhLive():
     global M3U8
 
     global LOGGER
-    LOGGER = logging.getLogger()
+    reset_global()
 
     LOGGER.info("爬取live.snh48视频?(默认：全网)")
     LOGGER.info("--------------------------------------------------------------")
     LOGGER.info("1. 单个视频 2.网站 3.自动断点续传 4.重新下载已存在视频 5.查看已存在项目 6.合并ts文件")
+    print("0. 退出\n")
     choice = input("您的选择:")
-    if choice == '5':
+    if choice == '0':
+        sys.exit()
+    elif choice == '5':
         SHOW = '1'
         LOGGER.info("5. 查看存在项目")
     elif choice == '1':
@@ -614,21 +613,22 @@ def spider_snhLive():
 
     if SHOW == '1':
         list_directory(working_path)
-        sys.exit()
+        MyExit2()
 
     if MERGE_TS == '1':
         merge_ts(working_path)
-        sys.exit()
+        MyExit2()
 
     if not os.path.isdir(working_path) and SINGLE_CONTINUE == '0' and RE_DOWNLOAD == '0':
         choice = input("工作文件夹不存在，是否创立: 1.是 2.否（默认）")
         if choice == '1':
             os.makedirs(working_path)
         else:
-            sys.exit()
+            print("开始下载前需要创立工作文件夹")
+            MyExit()
     elif not os.path.isdir(working_path) and (SINGLE_CONTINUE == '1' or RE_DOWNLOAD == '1'):
-        LOGGER.info("工作文件夹不存在，退出")
-        sys.exit()
+        LOGGER.info("选择继续下载，但工作文件夹不存在，请检查")
+        MyExit()
 
     if SINGLE_CONTINUE == '0' and RE_DOWNLOAD == '0':
         print("--------------------------------------------------------------")
@@ -658,14 +658,14 @@ def spider_snhLive():
     if SINGLE_CONTINUE == '1':
         video_url, RESOLUTION = _continue_download(working_path)
     elif RE_DOWNLOAD == '1':
-        video_url, RESOLUTION = _force_redownload(working_path)
+        video_url, RESOLUTION = _continue_download(working_path, REDOWNLOAD=True)
     elif SINGLE == '1':
         print("--------------------------------------------------------------")
         video_url = input("请输入单个视频地址(live.snh48.com):")
         LOGGER.debug("单个视频下载地址: %s", video_url)
         if not video_url:
             print("需要输入视频地址,请重新开始")
-            sys.exit(1)
+            MyExit()
 
     if SINGLE == '1' or SINGLE_CONTINUE == '1' or RE_DOWNLOAD == '1':
         parsed = _get_downloadable_from_url(video_url, RESOLUTION)
@@ -684,6 +684,19 @@ def spider_snhLive():
     else:
         print("--------------------------------------------------------------")
         print("解析所有视频(live.snh48.com)")
+        choice = input("选择团体: 1.SNH48 2.GNZ48 3.BEJ48 4.SHY48 5.CKG48 (默认：SNH48)")
+
+        if choice == "2":
+            site_url = GNZ48LIVE_API
+        elif choice == "3":
+            site_url = BEJ48LIVE_API
+        elif choice == "5":
+            site_url = CKG48LIVE_API
+        elif choice == "4":
+            site_url = SHY48LIVE_API
+        else:
+            site_url = SNH48LIVE_API
+
         print("--------------------------------------------------------------")
         print("是否为每个视频建立.ts列表?")
         M3U8 = input("1. 是 2.否 (默认: 否)")
@@ -698,8 +711,6 @@ def spider_snhLive():
         VIDEO_START = 1 if VIDEO_START == "" else int(VIDEO_START)
         LOGGER.debug("从第%s页开始", PAGE_START)
         LOGGER.debug("从第%s几个视频开始", VIDEO_START)
-
-        site_url = SNH48LIVE_API
 
         start_time = time.time()
         while True:
@@ -716,13 +727,13 @@ def spider_snhLive():
         index_html = etree.HTML(r.text)
 
         # 获取页面总数
-        num = int(index_html.xpath('//a[@class="end"]')[0].text)
+        num = int(re.search(r'\d+',index_html.xpath('//span[@class="p-skip"]')[0].text).group(0))
         LOGGER.info("共%d页", num)
         LOGGER.info("--------------------------------------------------------------")
 
         if PAGE_START > num:
             LOGGER.info("PAGE_START %d 超出范围(共%d页)", PAGE_START, num)
-            sys.exit(1)
+            MyExit()
 
         # csv总结文件(总是写出)
         csvfilename = working_path + os.path.sep + 'snh48live.csv'
@@ -731,6 +742,11 @@ def spider_snhLive():
             csvfile = open(csvfilename, 'at')
             port_csv = csv.writer(csvfile)
         else:
+            if os.path.isfile(csvfilename):
+                backupfilename = (working_path + os.path.sep + 'snh48live-'
+                                  + datetime.now().strftime('%Y%m%d%H%M') + '.csv')
+                shutil.move(csvfilename, backupfilename)
+
             csvfile = open(csvfilename, 'wt')
             port_csv = csv.writer(csvfile)
             port_csv.writerow(['title','info','url','m3u8_url'])
@@ -747,7 +763,7 @@ def spider_snhLive():
 
             if VIDEO_START > len(page_list):
                 LOGGER.info("VIDEO_START %d 超出范围(共%d页)", VIDEO_START, len(page_list))
-                sys.exit(1)
+                MyExit()
 
             if M3U8 == '1':
                 if not os.path.isdir(working_path + os.path.sep + 'M3U8' + os.path.sep + RESOLUTION):
@@ -787,14 +803,21 @@ def spider_snhLive():
         csvfile.close()
 
 
-if __name__ == '__main__':
+def main():
+    try:
+        while True:
+            print()
+            spider_snhLive()
+    except KeyboardInterrupt:
+        press_to_exit()
 
+if __name__ == '__main__':
     if os.path.isfile("logging.json"):
         with open("logging.json", "r", encoding="utf-8") as fd:
             config = json.load(fd)
             logfilename = "log.txt"
             if os.path.isfile(logfilename):
-                os.rename(logfilename, 'log-old.txt')
+                shutil.move(logfilename, 'log-old.txt')
             config['handlers']['file_handler']['filename'] = logfilename
             config['handlers']['file_handler']['mode'] = 'w'
             logging.config.dictConfig(config)
@@ -804,5 +827,6 @@ if __name__ == '__main__':
                 format="%(message)s",
                 filemode="w")
 
+    LOGGER = logging.getLogger()
     logging.info(datetime.now().strftime('%Y-%m-%d %H:%M'))
-    spider_snhLive()
+    main()
