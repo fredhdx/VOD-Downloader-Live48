@@ -62,6 +62,8 @@ def remove_nbws(text):
     text = text.replace(u'\xa0', ' ')
     # HalfWidth fullstop
     text = text.replace(u'\uff61', ' ')
+    # Bullet
+    text = text.replace(u'\u2022', '')
     # White space
     text = text.replace(u'\t', ' ').replace(u'\r', ' ')
 
