@@ -339,6 +339,7 @@ def merge_ts(path):
         print("合并ts文件，路径不存在，请检查: %s" % working_path)
         MyExit()
 
+    files = [f for f in os.listdir(working_path) if f.endswith('.ts')]
     tsNames = sorted(files, key=lambda f: int(f.split('.')[0]))
     title = working_path.split(os.path.sep)[-3]
     with open(os.path.sep.join(working_path.split(os.path.sep)[:-1]) + os.path.sep + title + '.ts', 'wb') as f:
