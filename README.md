@@ -2,6 +2,8 @@
 
 下载live.snh48.com储存的历史视频/Download archived video on live.snh48.com
 
+![example](source/example.gif)
+
 ## 功能/Feature
 
     + 可选择单个视频或爬取所有视频/ Single Video Mode or Full Download
