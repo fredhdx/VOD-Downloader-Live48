@@ -1,0 +1,69 @@
+{
+    "version": 1,
+    "disable_existing_loggers": true,
+    "formatters": {
+        "basic": {
+            "class": "logging.Formatter",
+            "style": "{",
+            "format": "{message:s}"
+        },
+        "brief": {
+            "class": "logging.Formatter",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %I:%M:%S ",
+            "format": "{asctime:s} {message:s}"
+        },
+        "debug": {
+            "class": "logging.Formatter",
+            "style": "{",
+            "datefmt": "%I:%M:%S",
+            "format": "[{levelname:s}:{lineno:d}- {funcName:<15s}  {message:s}"
+        },
+        "multi-process": {
+            "class": "logging.Formatter",
+            "style": "{",
+            "datefmt": "%I:%M:%S",
+            "format": "{levelname:8s}; {process:5d}; {asctime:s}; {name:<15s} {lineno:4d}; {message:s}"
+        },
+        "multi-thread": {
+            "class": "logging.Formatter",
+            "style": "{",
+            "datefmt": "%I:%M:%S",
+            "format": "{levelname:8s}; {threadName:5d}; {asctime:s}; {name:<15s} {lineno:4d}; {message:s}"
+        },
+        "verbose": {
+            "class": "logging.Formatter",
+            "style": "{",
+            "datefmt": "%I:%M:%S",
+            "format": "{levelname:8s}; {process:5d}; {threadName:8s}; {asctime:s}; {name:<15s} {lineno:4d}; {message:s}"
+        },
+        "multiline": {
+            "class": "logging.Formatter",
+            "style": "{",
+            "datefmt": "%I:%M:%S",
+            "format": "{levelname:8s}\n{process:5d}\n{threadName:8s}\n{asctime:s}\n{name:<15s}{lineno:4d}\n{message:s}\n"
+        }
+    },
+    "handlers": {
+        "console":{
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "basic",
+            "stream" : "ext://sys.stdout"
+        },
+        "file_handler": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "formatter": "brief",
+            "filename": "info.log",
+            "backupCount": 20,
+            "mode":"w",
+            "encoding": "utf-8"
+        }
+    },
+    "loggers": {},
+    "root": {
+        "handlers": ["console","file_handler"],
+        "level": "DEBUG"
+    }
+}

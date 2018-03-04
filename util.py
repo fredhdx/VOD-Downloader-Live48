@@ -140,3 +140,29 @@ def clean_string(text, option):
         text = remove_extended(text)
 
     return text
+
+
+def search_by_keywords(search_pattern, target_string):
+    ''' 回车选择所有视频, 不同关键字通过,分割，必要条件通过+添加
+        例子1：Team NII + 公演 搜索 含有Team NII和公演关键字的视频
+        例子2：剧场女神 + Team X, 梦想的旗帜 + Team X 搜索 Team X名下剧场女神或旗帜两场公演的视频
+    '''
+
+    search_pattern = search_pattern.lower()
+    target_string = target_string.lower()
+
+    MATCH = False
+    search_pattern_options = search_pattern.split(',')
+    for each_option in search_pattern_options:
+
+        words = each_option.strip().split('+')
+        SUB_MATCH = True
+        for word in words:
+            if word == 'team x':
+                target_string = target_string.replace('team xii', '')
+
+            SUB_MATCH = SUB_MATCH and (word.strip() in target_string)
+
+        MATCH = MATCH or SUB_MATCH
+
+    return MATCH

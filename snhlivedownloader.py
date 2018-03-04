@@ -7,6 +7,7 @@
               + 可选择单个视频或爬取所有视频"
               + 可选取清晰度"
               + 可输出m3u8片段列表(需要简单修改参数)"
+              + 支持全站标题搜索过滤: 回车全站，搜索项由(,)分割，每个搜索项可以通过(+)添加必选条件: 公演 + Team X, 狼人杀
 
     参考: https://github.com/ShizukuIchi/avgle-downloader/"
           https://pypi.python.org/pypi/m3u8"
@@ -58,6 +59,7 @@ ERROR_MSG = []
 # RESET VARIABLE
 def reset_global():
     global SINGLE
+    global SEARCH
     global SHOW
     global MERGE_TS
     global SINGLE_CONTINUE
@@ -68,6 +70,7 @@ def reset_global():
 
     SINGLE = '0'
     SHOW = '0'
+    SEARCH = '0'
     MERGE_TS = '0'
     SINGLE_CONTINUE = '0'
     RE_DOWNLOAD = '0'
@@ -489,6 +492,9 @@ def _get_downloadable_from_url(video_url, resolution):
     global RESOLUTION
     global ERROR_MSG
     global HEADER
+    global M3U8
+    global DOWNLOAD
+    global SEARCH
 
     # 解析m3u8地址
     start_time = time.time()
@@ -553,7 +559,10 @@ def _get_downloadable_from_url(video_url, resolution):
             m3u8_url = liuchang_url
 
     # 解析当页可用视频m3u8
-    ts_list = _get_ts_from_m3u8(m3u8_url)
+    if M3U8 == '1' or DOWNLOAD == '1':
+        ts_list = _get_ts_from_m3u8(m3u8_url)
+    else:
+        ts_list = []
 
     LOGGER.info("已解析: %s", fname)
     return {'title':title, 'info':info, 'fname':fname, 'm3u8_url':m3u8_url, 'site_url':video_url, 'ts_list':ts_list}
@@ -562,6 +571,7 @@ def _get_downloadable_from_url(video_url, resolution):
 def spider_snhLive():
 
     global SHOW
+    global SEARCH
     global DOWNLOAD
     global RESOLUTION
     global MERGE_TS
@@ -577,29 +587,33 @@ def spider_snhLive():
 
     LOGGER.info("爬取live.snh48视频?(默认：全网)")
     LOGGER.info("--------------------------------------------------------------")
-    LOGGER.info("1. 单个视频 2.网站 3.自动断点续传 4.重新下载已存在视频 5.查看已存在项目 6.合并ts文件")
+    LOGGER.info("1. 单个视频 2.全站 3.全站标题筛选 4.自动断点续传 5.重新下载已存在视频 6.查看已存在项目 7.合并ts文件")
     print("0. 退出\n")
     choice = input("您的选择:")
     if choice == '0':
         sys.exit()
-    elif choice == '5':
+    elif choice == '6':
         SHOW = '1'
-        LOGGER.info("5. 查看存在项目")
+        LOGGER.info("6. 查看存在项目")
     elif choice == '1':
         SINGLE = '1'
-        LOGGER.info("1. 爬取单个视频")
+        LOGGER.info("1. 单个视频")
     elif choice == '3':
-        SINGLE_CONTINUE = '1'
-        LOGGER.info("3. 自动断点续传")
+        SINGLE = '0'
+        SEARCH = '1'
+        LOGGER.info("3. 全站标题筛选")
     elif choice == '4':
+        SINGLE_CONTINUE = '1'
+        LOGGER.info("4. 自动断点续传")
+    elif choice == '5':
         RE_DOWNLOAD = '1'
-        LOGGER.info('4. 重新下载已存在视频')
-    elif choice == '6':
+        LOGGER.info('5. 重新下载已存在视频')
+    elif choice == '7':
         MERGE_TS = '1'
-        LOGGER.info('6. 合并ts文件')
+        LOGGER.info('7. 合并ts文件')
     else:
         SINGLE = '0'
-        LOGGER.info("2. 爬取网站")
+        LOGGER.info("2. 爬取全站")
 
     LOGGER.info("--------------------------------------------------------------")
     choice = input("工作文件夹（当前 + 输入, 默认 /snh48live）:")
@@ -697,6 +711,16 @@ def spider_snhLive():
         else:
             site_url = SNH48LIVE_API
 
+        search_pattern = ""
+        if SEARCH == '1':
+            print("--------------------------------------------------------------")
+            print("通过标题关键字筛选视频")
+            print("(回车选择所有视频, 不同关键字通过(,)分割，每个关键字多项必要条件通过(+)添加)" + os.linesep)
+            print("例子1：Team NII + 公演 将筛选 含有Team NII和公演关键字的视频")
+            print("例子2：剧场女神 + Team X, 梦想的旗帜 + Team X 将筛选索 Team X演出的剧场女神 或 梦想的旗帜两场公演视频")
+            print("筛选区域仅限于标题和副标题" + os.linesep)
+            search_pattern = input("请输入关键字: ")
+
         print("--------------------------------------------------------------")
         print("是否为每个视频建立.ts列表?")
         M3U8 = input("1. 是 2.否 (默认: 否)")
@@ -749,6 +773,8 @@ def spider_snhLive():
 
             csvfile = open(csvfilename, 'wt')
             port_csv = csv.writer(csvfile)
+            if SEARCH:
+                port_csv.writerow(['search by:', search_pattern])
             port_csv.writerow(['title','info','url','m3u8_url'])
 
         # 获取每页视频
@@ -783,21 +809,20 @@ def spider_snhLive():
                     video_obj = snh48_video()
                     video_obj.update(parsed)
                     video_obj.addimgurl(video_img)
-                    video_list.append(video_obj)
 
-                    port_csv.writerow([video_obj.title, video_obj.info, video_obj.site_url,video_obj.m3u8_url])
-                    csvfile.flush()
+                    if SEARCH == '0' or util.search_by_keywords(search_pattern, video_obj.fname):
+                        video_list.append(video_obj)
+                        port_csv.writerow([video_obj.title, video_obj.info, video_obj.site_url,video_obj.m3u8_url])
 
+                        if M3U8 == '1':
+                            video_obj.write_tslist(working_path + os.path.sep + 'M3U8' + os.path.sep + RESOLUTION)
 
-                    if M3U8 == '1':
-                        video_obj.write_tslist(working_path + os.path.sep + 'M3U8' + os.path.sep + RESOLUTION)
+                        if DOWNLOAD == '1':
+                            if not os.path.isdir(working_path):
+                                os.makedirs(working_path)
 
-                    if DOWNLOAD == '1':
-                        if not os.path.isdir(working_path):
-                            os.makedirs(working_path)
-
-                        LOGGER.debug("开始下载")
-                        video_obj.download(working_path)
+                            LOGGER.debug("开始下载")
+                            video_obj.download(working_path)
                 index += 1
 
         csvfile.close()
