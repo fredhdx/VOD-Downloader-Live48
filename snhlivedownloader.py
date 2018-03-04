@@ -450,7 +450,7 @@ def _continue_download(path, REDOWNLOAD=False):
         LOGGER.info("------------------  有可能覆盖错误视频")
         LOGGER.info("请检查info.txt中的网址是否指向目标视频")
         LOGGER.info("已存在：%s", _chosen.split(os.path.sep)[-2])
-        LOGGER.info("远程文件：%s", parsed_title)
+        LOGGER.info("远程文件：%s", parsed_fname)
         print("返回")
         MyExit()
 
