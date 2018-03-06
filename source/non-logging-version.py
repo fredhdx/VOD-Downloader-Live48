@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # coding:utf-8 #
 """
+    This is a Windows Version using standard input/output. no systematic logging files written.
+
     下载live.snh48.com历史视频"
               + 采用python3: requests库"
      　　     + 支持断点续传"

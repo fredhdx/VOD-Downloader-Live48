@@ -6,11 +6,13 @@
 
 ## 功能/Feature
 
+    + 最新：新增全站标题关键词筛选
+    
     + 可选择单个视频或爬取所有视频/ Single Video Mode or Full Download
     + 添加手动合并ts文件功能 / merge downloaded ts
     + 从已存在项目中自动选择断点续传/choose from existing downloads to continue
     + 重新下载已存在项目/re-download existing video (WILL CLEAR OLD FILES!)
-
+    
     + 支持断点续传/ Download from where you left
     + 可选取清晰度/ Choose resolution (if provided by source)
     + 可输出m3u8片段列表(需要简单修改参数)/ .m3u8 file export supported(just change M3U8 variable)
@@ -20,8 +22,14 @@
     + python >= --version 3.0
     + required modules: lxml, requests
 
- `python3 snh48downloader.py`
-   
++ 直接使用python代码
+
+`python3 snhlivedownloader.py`
+
++ 使用可执行文件`/dist/snhlivedownloader(Linux)`或`/dist/snhlivedownloader.exe(Windows)`
+
+  请把可执行文件和`logging.json`放在同一文件夹下运行
+
 ## 关于直播下载
 > python对于直播流下载功能支持并不好，并且使用python内建库下载直播文件分段、检查可用都有问题，所以就不在此实现。直播流下载储存推荐使用vlc或者ffmpeg(强留推荐，自动分块)或其他软件进行下载。
 
