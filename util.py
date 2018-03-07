@@ -5,6 +5,8 @@
 
 import platform
 import re
+import time
+import sys
 
 def legitimize(text, myos=platform.system()):
     """Converts a string to a valid filename.
@@ -141,7 +143,6 @@ def clean_string(text, option):
 
     return text
 
-
 def search_by_keywords(search_pattern, target_string):
     ''' 回车选择所有视频, 不同关键字通过,分割，必要条件通过+添加
         例子1：Team NII + 公演 搜索 含有Team NII和公演关键字的视频
@@ -166,3 +167,40 @@ def search_by_keywords(search_pattern, target_string):
         MATCH = MATCH or SUB_MATCH
 
     return MATCH
+
+# 按任意键退出
+def press_to_exit():
+    input("\n按任意键退出")
+    sys.exit()
+
+def timefunc(f):
+    '''
+    Time profiling function adapted from "Simple Timers" example at
+    https://zapier.com/engineering/profiling-python-boss/
+    '''
+    def f_timer(*args, **kwargs):
+        start = time.time()
+        result = f(*args, **kwargs)
+        end = time.time()
+        elapsed_time = end - start
+        print(f.__name__ + ' took ' + str(elapsed_time) + ' seconds')
+        return (result, elapsed_time)
+    return f_timer
+
+def combineTitles(title1, title2):
+    ''' process title1 and title2 provided by live.snh48.combineTitles
+    '''
+
+    title = title1
+    if not title.startswith("《"):
+        title = "《" + title + "》"
+
+    date_string = crush_time(title2)[:10] # if no date found, use title2[:10] part
+    title = date_string + ' ' + title # 《48狼人杀》 20180202
+
+    if "星梦Mini" in title:
+        title = title + ' ' + re.sub('本期成员：', '', re.search(r'.*' + date_string[:4], title2).group(0)[:-4])
+    if "48狼人杀" in title or "公演" in title:
+        title = title + ' ' + re.search(r'.*' + date_string[:4], title2).group(0)[:-4]
+
+    title = clean_string(title, 'filename')
