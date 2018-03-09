@@ -204,3 +204,5 @@ def combineTitles(title1, title2):
         title = title + ' ' + re.search(r'.*' + date_string[:4], title2).group(0)[:-4]
 
     title = clean_string(title, 'filename')
+
+    return title
