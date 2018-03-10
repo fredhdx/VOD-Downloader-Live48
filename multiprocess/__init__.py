@@ -35,6 +35,8 @@ def backToMain():
 def uri_prompt():
     ''' Prompt for uri entry. Do not check for validity of entry.
     '''
+    logger = logging.getLogger()
+    logger.info("")
     uri = input("请输入视频连接 | Please enter url: ")
 
     return uri
@@ -45,7 +47,10 @@ def domain_prompt():
 
     from __variables__ import DOMAIN
 
-    choice = input("请选择网站 | Please choose a site: 1.SNH48 2.GNZ48 3.BEJ48 4.SHY48 5.CKG48")
+    logger = logging.getLogger()
+    logger.info("")
+
+    choice = input("请选择网站 | Please choose a site:  1.SNH48   2.GNZ48   3.BEJ48   4.SHY48   5.CKG48  >> ")
 
     if choice == "1":
         domain = DOMAIN['SNH48']
@@ -66,6 +71,8 @@ def domain_prompt():
 def search_prompt():
     ''' Prompt for search pattern. Do not check entry validity
     '''
+    logger = logging.getLogger()
+    logger.info("")
     logger.info("标题关键词搜索 | Search by keywords. 不同关键字通过(,)分割，每个关键字多项必要条件通过(+)添加")
     logger.info("搜索结果储存于 search.txt 和 search.csv 中。如果已有文件，请注意备份。")
     logger.info("   例子1：Team NII + 公演 将筛选 含有Team NII和公演关键字的视频")
@@ -77,8 +84,9 @@ def search_prompt():
     return search_pattern
 
 def advanced_menu():
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
 
+    logger.info("")
     logger.info("高级功能 | Advanced Options")
     logger.info("--------------------------------------------------------------")
     logger.info("1. 下载M3U8列表 | Download M3U8" + os.linesep + "2.查看已存在项目 | Show Existing Projects"
@@ -92,32 +100,37 @@ def advanced_menu():
             return 0
         elif choice == '0':
             press_to_exit()
+            return 0
         elif choice == '1':
             uri = uri_prompt()
             downloadVideo(uri, DOWNLOAD=False, M3U8=True)
+            return 0
         elif choice == '2':
             showProjects()
+            return 0
         elif choice == '3':
             continueDownload(REDOWNLOAD=True)
+            return 0
         elif choice == '4':
             mergeTs()
-        else:
             return 0
+        else:
+            continue
 
     return 0
 
 def snhlivedownloader():
     ''' Main menu
     '''
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
 
     logger.info("欢迎来到SNH48公演下载器 | Welcome to snhlivedownloader")
     logger.info("--------------------------------------------------------------")
-    logger.info("1. 下载视频 | Download" + os.linesep + "2.搜索 | Search" + os.linesep + "3.断点续传 | Continue"
+    logger.info("1.下载视频 | Download" + os.linesep + "2.搜索 | Search" + os.linesep + "3.断点续传 | Continue"
                  + os.linesep + "4.遍历全站 | Scrape site" + os.linesep + "5.其它功能 | Advanced")
-    logger.info("0. 退出" + os.linesep)
+    logger.info("0. 退出 | Exit" + os.linesep)
 
-    choice = input("您的选择 | Your choice:")
+    choice = input("您的选择 | Your choice: ")
 
     if choice == '0':
         sys.exit()
@@ -167,20 +180,28 @@ def snhlivedownloader():
 
 def test():
     domain = DOMAIN['SNH48']
-    results = get_siteVideoList(domain)
-    return results
+    logger = logging.getLogger()
+    setup_logger()
+    gevent.monkey.patch_all()
+
+    from __HTTPrequests__ import get_siteVideoList
+    r = get_siteVideoList(domain)
+    return r
 
 def main():
     try:
         while True:
-            logger = logging.getLogger(__name__)
+            logger = logging.getLogger()
+            print(os.linesep * 100)
+            logger.info("")
             logger.info(datetime.now().strftime('%Y-%m-%d %H:%M'))
+            logger.info("")
             snhlivedownloader()
     except KeyboardInterrupt:
         press_to_exit()
 
 if __name__ == '__main__':
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
     setup_logger()
     gevent.monkey.patch_all()
     main()

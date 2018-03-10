@@ -662,7 +662,7 @@ def spider_snhLive():
             RESOLUTION = 'chaoqing'
         print("清晰度: %s" % RESOLUTION)
 
-    LOGGER.debug("是否下载视频 %s, 清晰度 %s", "是" if DOWNLOAD else "否", RESOLUTION)
+    logger.info("是否下载视频 %s, 清晰度 %s", "是" if DOWNLOAD else "否", RESOLUTION)
 
     if SINGLE_CONTINUE == '1':
         video_url, RESOLUTION = _continue_download(working_path)
@@ -671,7 +671,7 @@ def spider_snhLive():
     elif SINGLE == '1':
         print("--------------------------------------------------------------")
         video_url = input("请输入单个视频地址(live.snh48.com):")
-        LOGGER.debug("单个视频下载地址: %s", video_url)
+        logger.info("单个视频下载地址: %s", video_url)
         if not video_url:
             print("需要输入视频地址,请重新开始")
             MyExit()
@@ -682,7 +682,7 @@ def spider_snhLive():
             video_obj = snh48_video()
             video_obj.update(parsed)
             if DOWNLOAD == '1':
-                LOGGER.debug("开始下载")
+                logger.info("开始下载")
                 video_obj.download(working_path)
 
             # print info
@@ -719,7 +719,7 @@ def spider_snhLive():
         print("--------------------------------------------------------------")
         print("是否为每个视频建立.ts列表?")
         M3U8 = input("1. 是 2.否 (默认: 否)")
-        LOGGER.debug("是否为每个视频建立.ts列表? %s", "是" if M3U8 == '1' else "否")
+        logger.info("是否为每个视频建立.ts列表? %s", "是" if M3U8 == '1' else "否")
         if M3U8 == '1':
             LOGGER.info("列表储存在: " + working_path + os.path.sep + 'M3U8' + os.path.sep + RESOLUTION)
             print()
@@ -728,8 +728,8 @@ def spider_snhLive():
         PAGE_START = 1 if PAGE_START == "" else int(PAGE_START)
         VIDEO_START = input("从第几个视频开始(未输入默认:1):")
         VIDEO_START = 1 if VIDEO_START == "" else int(VIDEO_START)
-        LOGGER.debug("从第%s页开始", PAGE_START)
-        LOGGER.debug("从第%s几个视频开始", VIDEO_START)
+        logger.info("从第%s页开始", PAGE_START)
+        logger.info("从第%s几个视频开始", VIDEO_START)
 
         start_time = time.time()
         while True:
@@ -816,7 +816,7 @@ def spider_snhLive():
                             if not os.path.isdir(working_path):
                                 os.makedirs(working_path)
 
-                            LOGGER.debug("开始下载")
+                            logger.info("开始下载")
                             video_obj.download(working_path)
                 index += 1
 

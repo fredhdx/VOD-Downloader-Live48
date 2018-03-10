@@ -29,6 +29,9 @@ RESOLUTION = 'chaoqing' # video resolution/清晰度
 
 # HTTP REQUESTS VARIABLES/HTTP REQUESTS变量
 MAIN_PAGE_API = '/index/index/p/%s.html'
+TRIALLIMIT_PER_PAGE = 10
 
-TRIAL_LIMIT_PER_PAGE = 10
-
+# DEBUG/诊断
+ERROR_STATUS_CODE = "Requests error, status_code: %s"
+ERROR_CONNECTION_TIMEOUT = "Unable to connect to %s after %s seconds of ConnectionErrors"
+ERROR_CONNECTION_TRIALLIMIT = "Unable to connect to %s after %s trial times"

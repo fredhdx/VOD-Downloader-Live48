@@ -9,8 +9,6 @@ from __utilities__ import press_to_exit
 from __utilities__ import progressbar
 from __variables__ import CONNECTION_TIMEOUT
 
-logger = logging.getLogger(__name__)
-
 class Snh48Video:
     """ A SNH48 Video class
             Store, write and download
@@ -19,14 +17,17 @@ class Snh48Video:
         self.title = ''
         self.info = ''
         self.fname = ''
-        self.m3u8_url = ''
+        self.m3u8_urls = {'chaoqing':'', 'gaoqing':'', 'liuchang':''}
         self.site_url = ''
         self.ts_list = {}
         self.img_url = ''
+        self.res = 'liuchang'
 
     def update(self, args):
         """ update snh48_video content.
         """
+        logger = logging.getLogger()
+
         if not args:
             logger.info("Error: snh48_video.update(args): empty args")
             press_to_exit()
@@ -38,8 +39,8 @@ class Snh48Video:
                     self.info = args['info']
                 elif k_args == 'fname':
                     self.fname = args['fname']
-                elif k_args == 'm3u8_url':
-                    self.m3u8_url = args['m3u8_url']
+                elif k_args == 'm3u8_urls':
+                    self.m3u8_urls = args['m3u8_urls']
                 elif k_args == 'site_url':
                     self.site_url = args['site_url']
                 elif k_args == 'ts_list':
@@ -53,9 +54,20 @@ class Snh48Video:
         if not imgurl:
             self.img_url = imgurl
 
+    def set_res(self, resolution):
+        logger = logging.getLogger()
+
+        if resolution.lower() in ['chaoqing', 'gaoqing', 'liuchang']:
+            self.res = resolution.lower()
+        else:
+            logger.info("Invalid resolution input %s" % resolution)
+            logger.info("Retain %s" % self.res)
+
     def write_tslist(self, path):
         """ Write video ts list to text file
         """
+        logger = logging.getLogger()
+
         if not path:
             logger.info("Error: snh48_video.write_tslist(path): empty path")
             press_to_exit()
@@ -76,11 +88,55 @@ class Snh48Video:
                 f.write(line['ts_url'] + '\n')
         f.close()
 
+    def get_tslist(self):
+        ''' get tslist for selected resolution for one Snh48Video object
+        '''
+        from __variables__ import HEADER
+        from __HTTPrequests__ import download_ts_from_uri
+
+        logger = logging.getLogger()
+
+        resolution = self.res
+        m3u8_urls = self.m3u8_urls
+        NOT_FOUND = False
+
+        while True:
+            if resolution == 'chaoqing':
+                if m3u8_urls[resolution] == "" or requests.get(m3u8_urls[resolution], timeout=CONNECTION_TIMEOUT, headers=HEADER).text == "\n":
+                    m3u8_urls[resolution].debug("未找到超清源,降低视频清晰度")
+                    resolution = "gaoqing"
+                else:
+                    break
+
+            if resolution == 'gaoqing':
+                if not m3u8_urls[resolution] or requests.get(m3u8_urls[resolution], timeout=CONNECTION_TIMEOUT, headers=HEADER).text == "\n":
+                    resolution = "liuchang"
+                else:
+                    break
+
+            if resolution == 'liuchang':
+                if not m3u8_urls[resolution] or requests.get(m3u8_urls[resolution], timeout=CONNECTION_TIMEOUT, headers=HEADER).text == "\n":
+                    NOT_FOUND = True
+                else:
+                    break
+
+        if NOT_FOUND:
+            logger.info("%s has no valid m3u8 list. No download available." % self.fname)
+            return
+
+        if self.res != resolution:
+            logger.info('Original resolution %s not found, switch to new resolution %s' % (self.res, resolution))
+            self.res = resolution
+
+        self.ts_list = download_ts_from_uri(self.m3u8_urls[self.res])
+
     def download(self, path, RESOLUTION='liuchang'):
         """ Downlaod video to path, with resolution RESOLUTION (default: liuchang/流畅)
                 Warning: RESOLUTION is set by wrapper functions. If used separately,
                 please specify; otherwise the lowest quality is used.
         """
+        logger = logging.getLogger()
+
         if not path:
             logger.info("Error: snh48_video.download(path): empty path")
             press_to_exit()
@@ -97,7 +153,8 @@ class Snh48Video:
                 f.write("video_url: %s\n" % self.site_url)
                 f.write("title: %s\n" % self.title)
                 f.write("info: %s\n" % self.info)
-                f.write("m3u8_url: %s\n" % self.m3u8_url)
+                for resolution in self.m3u8_urls:
+                    f.write("%s: %s\n" % (resolution, self.m3u8_urls[resolution]))
                 f.write("resolution: %s" % RESOLUTION)
 
             # write ts list: ts list is saved to file to enable continue/re-download function

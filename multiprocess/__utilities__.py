@@ -2,11 +2,11 @@
 # coding:utf-8 #
 """ 字符串处理
 """
-
 import platform
 import re
 import time
 import sys
+import logging
 
 def legitimize(text, myos=platform.system()):
     """Converts a string to a valid filename.
@@ -166,7 +166,10 @@ def compare_to_search_keywords(search_pattern, target_string):
     return MATCH
 
 def press_to_exit():
+    logger = logging.getLogger()
     input("\n按任意键退出")
+
+    logger.info("再见 Bye!")
     sys.exit()
 
 def timefunc(f):
@@ -179,7 +182,7 @@ def timefunc(f):
         result = f(*args, **kwargs)
         end = time.time()
         elapsed_time = end - start
-        print(f.__name__ + ' took ' + str(elapsed_time) + ' seconds')
+        #print(f.__name__ + ' took ' + str(elapsed_time) + ' seconds')
         return (result, elapsed_time)
     return f_timer
 
