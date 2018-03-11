@@ -15,16 +15,16 @@ from __variables__ import ERROR_CONNECTION_TIMEOUT, ERROR_STATUS_CODE, ERROR_CON
 
 from __snhvideo__ import Snh48Video
 from __utilities__ import timefunc
-from __utilities__ import press_to_exit
 
 from __parsing__ import parse_soup_basic
 from __parsing__ import parse_siteurl_deep
 
+from __variables__ import GREENLET_SIZE
 
 
-def make_HTTPrequests(uri, func_name):
+def _make_HTTPrequests(uri, func_name):
     ''' Using requests.get to make a HTTP get requests, return response if r.status_code == 200
-            else exit on error
+            else return None on any error
     '''
     logger = logging.getLogger()
 
@@ -37,7 +37,7 @@ def make_HTTPrequests(uri, func_name):
             if time.time() > start_time + CONNECTION_TIMEOUT:
                 logger.info("Error: %s" % func_name)
                 logger.info(ERROR_CONNECTION_TIMEOUT % (uri, CONNECTION_TIMEOUT))
-                sys.exit()
+                return None
             else:
                 time.sleep(1)
 
@@ -47,24 +47,73 @@ def make_HTTPrequests(uri, func_name):
         logger.info("Error: %s" % func_name)
         logger.info(uri)
         logger.info(ERROR_STATUS_CODE % r.status_code)
-        sys.exit()
+        return None
 
-def get_pageList(domain):
+def _request_ts_from_uri(m3u8_url):
+    ''' downlaod ts list from m3u8 url (success: return list, failure return [])
+    '''
+
+    logger = logging.getLogger()
+    ts_list = []
+
+    if not "m3u8" in m3u8_url:
+        logger.info('Error download_ts_from_uri: path contains no m3u8 tag')
+        logger.info('m3u8_url: %s' % m3u8_url)
+        return ts_list
+
+    start_time = time.time()
+    while True:
+        try:
+            r = requests.get(m3u8_url, headers=HEADER)
+            break
+        except requests.ConnectionError:
+            if time.time() > start_time + CONNECTION_TIMEOUT:
+                logger.info("Error: _HTTPrequests_ >> request_ts_from_uri")
+                logger.info(ERROR_CONNECTION_TIMEOUT % (m3u8_url, CONNECTION_TIMEOUT))
+                return ts_list
+            else:
+                time.sleep(1)
+
+    if r.status_code != 200:
+        logger.info("Error: _HTTPrequests_ >> request_ts_from_uri")
+        logger.info("%s" % m3u8_url)
+        logger.info(ERROR_STATUS_CODE % r.status_code)
+        return ts_list
+
+    text = r.text.splitlines()
+    base_uri = m3u8_url.rsplit('/', 1)[0] # for old stream,　this is the .mp4 link
+
+    for i in range(0, len(text)):
+        if "#EXTINF" in text[i]:
+            rel_link = text[i+1]
+
+            if "http" in rel_link:
+                ts_list.append({'EXTINF':text[i], 'ts_url':rel_link})
+            else:
+                ts_list.append({'EXTINF':text[i], 'ts_url':base_uri + '/' + rel_link})
+
+    return ts_list
+
+def _get_pageList(domain):
     ''' domain >> page url list (sucess: return API_list[], failur: exit)
+        return None if error
     '''
     from __variables__ import MAIN_PAGE_API
 
     API = domain + MAIN_PAGE_API
     pageNum = 1
 
-    r = make_HTTPrequests(API, "_HTTPrequests_ >> get_pageList")
-    soup = BeautifulSoup(r.text, 'lxml')
-    pageNum = int(re.search(r'\d+', soup.find('span', {'class':'p-skip'}).text).group(0))
+    r = _make_HTTPrequests(API, "_HTTPrequests_ >> get_pageList")
+    if r:
+        soup = BeautifulSoup(r.text, 'lxml')
+        pageNum = int(re.search(r'\d+', soup.find('span', {'class':'p-skip'}).text).group(0))
+    else:
+        return None
 
     API_list = [(API % str(page)) for page in range(1, pageNum + 1)]
     return API_list
 
-def get_singlePageVideoList(pageUri):
+def _get_singlePageVideoList(pageUri):
     ''' page url >> video info dictionary list (success: return videos[]  failure: return [])
         {'site_url':site_url, 'img_url':img_url, 'title':title, 'info':info, 'fname':fname}
     '''
@@ -85,6 +134,7 @@ def get_singlePageVideoList(pageUri):
                 break
             if count == TRIALLIMIT_PER_PAGE - 1:
                 logger.info('Error: _HTTPrequests_ >> get_singlePageVideoList')
+                break
         except requests.ConnectionError:
             continue
 
@@ -96,23 +146,28 @@ def get_singlePageVideoList(pageUri):
     return videos
 
 @timefunc
-def get_siteVideoList(entryPage):
-    ''' domain >> a list of video info dictionary of all videos hosted on site (always return a list containing something)
+def get_siteVideoList(entryPage_url):
+    ''' domain url >> a list of video info dictionary of all videos hosted on site (always return a list containing something)
         timefunc is used for debug, access data by result[0]
+        return [] if _get_pageList fails
+        [{'site_url':site_url, 'img_url':img_url, 'title':title, 'info':info, 'fname':fname}]
     '''
     from __variables__ import GREENLET_SIZE
     # gevent.monkey.patch_all() # patched in __init__
     logger = logging.getLogger()
 
-    page_list = get_pageList(entryPage)
+    page_list = _get_pageList(entryPage_url)
+    if not page_list:
+        return []
+
     s = requests.session()
     s.headers.update(HEADER)
     p = pool.Pool(GREENLET_SIZE)
-    videospPage = p.map(get_singlePageVideoList, page_list)
+    videospPage = p.map(_get_singlePageVideoList, page_list)
     p.join()
     s.close()
 
-    logger.info(os.linesep + '%s 读取完毕' % entryPage)
+    logger.info(os.linesep + '%s 读取完毕' % entryPage_url)
     logger.info("共有%s页" % len(videospPage))
     logger.info("共有%s视频" % sum([len(page) for page in videospPage]) + os.linesep )
 
@@ -120,100 +175,54 @@ def get_siteVideoList(entryPage):
 
     return all_videos
 
-def download_ts_from_uri(m3u8_url):
-    ''' downlaod ts list from m3u8 url (success: return list, failure return [])
+def get_batch_M3U8(videoObjects, resolution):
+    ''' List of SnhVideo objects (might contain None objects) >> get their M3U8
+        return [] containg 0 or -1, -1 indicating failure, 0 indicating success
     '''
+    def _download_tslist(videoobject, resolution):
+        ''' return 0 on success, -1 on failure
+        '''
 
-    logger = logging.getLogger()
-    ts_list = []
+        if videoobject:
+            videoobject.set_res(resolution)
+            r = videoobject.get_tslist()
+        else:
+            return -1
 
-    if not "m3u8" in m3u8_url:
-        logger.info('Error download_ts_from_uri: path contains no m3u8 tag')
-        logger.info('m3u8_url: %s' % m3u8_url)
-        return ts_list
+        return r
 
-    start_time = time.time()
-    while True:
-        try:
-            r = requests.get(m3u8_url, headers=HEADER)
-            break
-        except requests.ConnectionError:
-            if time.time() > start_time + CONNECTION_TIMEOUT:
-                logger.info("Error: _HTTPrequests_ >> download_ts_from_uri")
-                logger.info(ERROR_CONNECTION_TIMEOUT % (m3u8_url, CONNECTION_TIMEOUT))
-                break
-            else:
-                time.sleep(1)
+    s = requests.session()
+    s.headers.update(HEADER)
+    p = pool.Pool(GREENLET_SIZE)
 
-    if r.status_code != 200:
-        logger.info("Error: _HTTPrequests_ >> download_ts_from_uri")
-        logger.info("%s" % m3u8_url)
-        logger.info(ERROR_STATUS_CODE % r.status_code)
-        return ts_list
+    results = p.map(_download_tslist, zip(videoObjects, [resolution] * len(videoObjects)))
+    p.join()
+    s.close()
 
-    text = r.text.splitlines()
-    base_uri = m3u8_url.rsplit('/', 1)[0] # for old stream,　this is the .mp4 link
-
-    for i in range(0, len(text)):
-        if "#EXTINF" in text[i]:
-            rel_link = text[i+1]
-
-            if "http" in rel_link:
-                ts_list.append({'EXTINF':text[i], 'ts_url':rel_link})
-            else:
-                ts_list.append({'EXTINF':text[i], 'ts_url':base_uri + '/' + rel_link})
-
-    return ts_list
+    return results
 
 def _uri_to_video(uri):
     ''' make a request to uri, create corresponding SnhVideo object
+        return video on success, None on failure
     '''
-    from __parsing__ import parse_soup_basic
-
-    logger = logging.getLogger()
-
-    start_time = time.time()
-    while True:
-        try:
-            r = requests.get(uri, headers=HEADER)
-            break
-        except requests.ConnectionError:
-            if time.time() > start_time + CONNECTION_TIMEOUT:
-                logger.info(ERROR_CONNECTION_TIMEOUT % (uri, CONNECTION_TIMEOUT))
-                sys.exit()
-            else:
-                time.sleep(1)
-
-    _video_ = Snh48Video()
-    if r.status_code == 200:
+    r = _make_HTTPrequests(uri, "__HTTPrequests__ >> _uri_to_vdeo")
+    if r:
         soup = BeautifulSoup(r.text, 'lxml')
-        _basic_ = parse_soup_basic(soup)
-        _video_.update(_basic_)
-    else:
-        logger.info("Error: _HTTPrequests_ >> _uri_to_video")
-        logger.info(uri)
-        logger.info(ERROR_STATUS_CODE % r.status_code)
-        sys.exit()
+        _video_ = Snh48Video()
+        parsed = parse_siteurl_deep(soup)
+        if parsed:
+            _video_.update(parsed)
+            return _video_
+        else:
+            return None
 
-    while True:
-        try:
-            r = requests.get(_video_.site_url, headers=HEADER)
-            break
-        except requests.ConnectionError:
-            if time.time() > start_time + CONNECTION_TIMEOUT:
-                logger.info(ERROR_CONNECTION_TIMEOUT % (uri, CONNECTION_TIMEOUT))
-                sys.exit()
-            else:
-                time.sleep(1)
+def _urls_to_videos(urls):
+    ''' a list of urls >> a list of SnhVideo objects, might contain None objects
+    '''
+    s = requests.session()
+    s.headers.update(HEADER)
+    p = pool.Pool(GREENLET_SIZE)
 
-    if r.status_code == 200:
-        soup = BeautifulSoup(r.text, 'lxml')
-        m3u8_urls = parse_siteurl_deep(soup)
-        _video_.update(m3u8_urls)
-    else:
-        logger.info("Error: _HTTPrequests_ >> _uri_to_video")
-        logger.info(uri)
-        logger.info(ERROR_STATUS_CODE % r.status_code)
-        sys.exit()
+    results = p.map(_uri_to_video, urls)
 
-    return 0
+    return results

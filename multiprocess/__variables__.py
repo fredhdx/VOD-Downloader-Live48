@@ -18,14 +18,7 @@ GREENLET_SIZE = 100
 CONNECTION_TIMEOUT = 90
 
 # MENU VARIABLES/菜单项变量
-
-DOWNLOAD = '0' # Single video/单个视频
-SHOW = '0'   #
-MERGE_TS = '0' # merge downloaded .ts/合并ts文件
-SINGLE_CONTINUE = '0' # continue download existing video/断点续传
-RE_DOWNLOAD = '0' # erase and re-download existing video/重新下载
-DOWNLOAD = '1' # download/是否下载
-RESOLUTION = 'chaoqing' # video resolution/清晰度
+RESOLUTION = 'liuchang' # video resolution/清晰度
 
 # HTTP REQUESTS VARIABLES/HTTP REQUESTS变量
 MAIN_PAGE_API = '/index/index/p/%s.html'

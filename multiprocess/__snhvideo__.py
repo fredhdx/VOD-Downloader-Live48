@@ -20,7 +20,6 @@ class Snh48Video:
         self.m3u8_urls = {'chaoqing':'', 'gaoqing':'', 'liuchang':''}
         self.site_url = ''
         self.ts_list = {}
-        self.img_url = ''
         self.res = 'liuchang'
 
     def update(self, args):
@@ -30,7 +29,7 @@ class Snh48Video:
 
         if not args:
             logger.info("Error: snh48_video.update(args): empty args")
-            press_to_exit()
+            return -1
         else:
             for k_args in args:
                 if k_args == 'title':
@@ -47,21 +46,18 @@ class Snh48Video:
                     self.ts_list = args['ts_list']
                 else:
                     logger.info("Warning: key %s not found in snh48_video", k_args)
-
-    def addimgurl(self, imgurl):
-        """ Add imgurl to class.
-        """
-        if not imgurl:
-            self.img_url = imgurl
+            return 0
 
     def set_res(self, resolution):
         logger = logging.getLogger()
 
         if resolution.lower() in ['chaoqing', 'gaoqing', 'liuchang']:
             self.res = resolution.lower()
+            return 0
         else:
             logger.info("Invalid resolution input %s" % resolution)
             logger.info("Retain %s" % self.res)
+            return -1
 
     def write_tslist(self, path):
         """ Write video ts list to text file
@@ -70,7 +66,7 @@ class Snh48Video:
 
         if not path:
             logger.info("Error: snh48_video.write_tslist(path): empty path")
-            press_to_exit()
+            return -1
         else:
             path = path + os.path.sep + self.fname + '.m3u8'
 
@@ -79,20 +75,22 @@ class Snh48Video:
         except OSError as e:
             logger.info(e)
             traceback.print_exc()
-            press_to_exit()
+            return -1
 
         if not self.ts_list:
             logger.info("Error: empty ts_list for %s %s", self.title, self.info)
+            return -1
         else:
             for line in self.ts_list:
                 f.write(line['ts_url'] + '\n')
         f.close()
+        return 0
 
     def get_tslist(self):
         ''' get tslist for selected resolution for one Snh48Video object
         '''
         from __variables__ import HEADER
-        from __HTTPrequests__ import download_ts_from_uri
+        from __HTTPrequests__ import _request_ts_from_uri
 
         logger = logging.getLogger()
 
@@ -122,16 +120,21 @@ class Snh48Video:
 
         if NOT_FOUND:
             logger.info("%s has no valid m3u8 list. No download available." % self.fname)
-            return
+            return -1
 
         if self.res != resolution:
             logger.info('Original resolution %s not found, switch to new resolution %s' % (self.res, resolution))
             self.res = resolution
 
-        self.ts_list = download_ts_from_uri(self.m3u8_urls[self.res])
+        self.ts_list = _request_ts_from_uri(self.m3u8_urls[self.res])
 
-    def download(self, path, RESOLUTION='liuchang'):
-        """ Downlaod video to path, with resolution RESOLUTION (default: liuchang/流畅)
+        if not self.ts_list:
+            return -1
+        else:
+            return 0
+
+    def download(self, path):
+        """ Downlaod video to path, with RESOLUTION in self.res (default: liuchang/流畅)
                 Warning: RESOLUTION is set by wrapper functions. If used separately,
                 please specify; otherwise the lowest quality is used.
         """
@@ -139,11 +142,12 @@ class Snh48Video:
 
         if not path:
             logger.info("Error: snh48_video.download(path): empty path")
-            press_to_exit()
+            return -1
         else:
+            RESOLUTION = self.res
+
             # create directory
             path = path + os.path.sep + self.fname + os.path.sep + RESOLUTION
-
             if not os.path.isdir(path + os.path.sep + 'tmp'):
                 os.makedirs(path + os.path.sep +'tmp')
 
@@ -197,7 +201,7 @@ class Snh48Video:
                                     f.write(chunk)
                     else:
                         logger.info("\nsnh48_video.download: write_ts: connection error")
-                        press_to_exit()
+                        return -1
 
                 tsNames.append(tmp_name)
                 index += 1
@@ -211,5 +215,7 @@ class Snh48Video:
                             shutil.copyfileobj(mergefile, f)
                         os.remove(ts)
                     logger.info('%s merged', self.fname)
+                    return 0
             else:
                 logger.info('Merge failed for %s', self.fname)
+                return -1

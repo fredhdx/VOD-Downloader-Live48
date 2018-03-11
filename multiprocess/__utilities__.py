@@ -2,11 +2,13 @@
 # coding:utf-8 #
 """ 字符串处理
 """
+import logging
+import os
 import platform
 import re
-import time
 import sys
-import logging
+import time
+
 
 def legitimize(text, myos=platform.system()):
     """Converts a string to a valid filename.
@@ -217,3 +219,30 @@ def progressbar(count, total, status=''):
 
     sys.stdout.write('[%s] %s%s ...%s\r' % (bar_str, percents, '%', status))
     sys.stdout.flush()
+
+def setup_working_path(CREATE=False):
+    ''' Set up working direcotry, always under the folder containg the script.
+    '''
+    logger = logging.getLogger()
+
+    logger.info("--------------------------------------------------------------")
+    logger.info("设置工作文件夹/Set up working path")
+    choice = input("默认/deault: /snh48live: ")
+    if not choice:
+        working_path = os.getcwd() + '/snh48live'
+    else:
+        choice = choice[1:] if choice[0] == os.path.sep else choice
+        working_path = os.getcwd() + os.path.sep + choice
+
+    logger.info("工作文件夹: %s", working_path)
+
+    if not os.path.isdir(working_path):
+        _prompt = "工作文件夹不存在，是否创立: 1.是 2.否（默认）" + os.linesep + "Working path not existing. Create it? 1. Yes  2. No (default)"
+        choice = input(_prompt)
+        if choice == '1':
+            os.makedirs(working_path)
+        else:
+            logger.info("开始下载前需要创立工作文件夹")
+            return ''
+
+    return working_path

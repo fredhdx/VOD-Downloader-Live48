@@ -50,21 +50,24 @@ def domain_prompt():
     logger = logging.getLogger()
     logger.info("")
 
-    choice = input("请选择网站 | Please choose a site:  1.SNH48   2.GNZ48   3.BEJ48   4.SHY48   5.CKG48  >> ")
+    choice = input("请选择网站 | Please choose a site:  1.SNH48   2.GNZ48   3.BEJ48   4.SHY48   5.CKG48  0.退出 (Exit) >> ")
 
-    if choice == "1":
-        domain = DOMAIN['SNH48']
-    if choice == "2":
-        domain = DOMAIN['GNZ48']
-    elif choice == "3":
-        domain = DOMAIN['BEJ48']
-    elif choice == "4":
-        sitdomain = DOMAIN['SHY48']
-    elif choice == "5":
-        domain = DOMAIN['CKG48']
-    else:
-        logger.info('无效输入 | Invalid input')
-        backToMain()
+    while True:
+        if choice == "1":
+            domain = DOMAIN['SNH48']
+        if choice == "2":
+            domain = DOMAIN['GNZ48']
+        elif choice == "3":
+            domain = DOMAIN['BEJ48']
+        elif choice == "4":
+            domain = DOMAIN['SHY48']
+        elif choice == "5":
+            domain = DOMAIN['CKG48']
+        elif choice == '0':
+            press_to_exit()
+        else:
+            logger.info('无效输入 | Invalid input')
+            continue
 
     return domain
 
@@ -97,14 +100,12 @@ def advanced_menu():
 
     while True:
         if choice == '9':
-            return 0
+            break
         elif choice == '0':
             press_to_exit()
-            return 0
         elif choice == '1':
             uri = uri_prompt()
-            downloadVideo(uri, DOWNLOAD=False, M3U8=True)
-            return 0
+            VideoList = downloadAllVideo(uri, DOWNLOAD=False, M3U8=True)
         elif choice == '2':
             showProjects()
             return 0
@@ -115,6 +116,7 @@ def advanced_menu():
             mergeTs()
             return 0
         else:
+            logger.info('无效输入 | Invalid input')
             continue
 
     return 0
@@ -145,16 +147,19 @@ def snhlivedownloader():
         continueDownload()
     elif choice == '4': # 遍历全站
         domain = domain_prompt()
+        DOWNLOAD = False
+        M3U8 = False
 
         # 是否下载M3U8
+        logger.info("")
         logger.info("是否下载全部视频 | Download all videos on site? (默认：否 | Default: No)")
         _choice_ = input("1. 否(no) 2. 是(yes)")
         if _choice_ == '2':
             DOWNLOAD = True
-            logger.debug("选择：是(Yes)")
+            logger.info("选择：是(Yes)")
         else:
             DOWNLOAD = False
-            logger.debug("选择：否(No)")
+            logger.info("选择：否(No)")
 
         # 是否下载M3U8
         if not DOWNLOAD:
@@ -162,13 +167,13 @@ def snhlivedownloader():
             _choice_ = input("1. 否(no) 2. 是(yes)")
             if _choice_ == '2':
                 M3U8 = True
-                logger.debug("选择：是(Yes)")
+                logger.info("选择：是(Yes)")
             else:
                 M3U8 = False
-                logger.debug("选择：否(No)")
+                logger.info("选择：否(No)")
 
-        downloadAllVideo(domain, DOWNLOAD=DOWNLOAD, M3U8=M3U8)
-
+        results = downloadAllVideo(domain, DOWNLOAD=DOWNLOAD, M3U8=M3U8) # Video list if download any, list of basic info dict otherwise
+        # [{'site_url':site_url, 'img_url':img_url, 'title':title, 'info':info, 'fname':fname}]
     elif choice == '5':
         advanced_menu()
     else:
