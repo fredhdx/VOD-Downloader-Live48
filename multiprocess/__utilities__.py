@@ -225,6 +225,7 @@ def setup_working_path(CREATE=False):
     '''
     logger = logging.getLogger()
 
+    logger.info("")
     logger.info("--------------------------------------------------------------")
     logger.info("设置工作文件夹/Set up working path")
     choice = input("默认/deault: /snh48live: ")
@@ -235,6 +236,7 @@ def setup_working_path(CREATE=False):
         working_path = os.getcwd() + os.path.sep + choice
 
     logger.info("工作文件夹: %s", working_path)
+    logger.info("")
 
     if not os.path.isdir(working_path):
         _prompt = "工作文件夹不存在，是否创立: 1.是 2.否（默认）" + os.linesep + "Working path not existing. Create it? 1. Yes  2. No (default)"
@@ -246,3 +248,60 @@ def setup_working_path(CREATE=False):
             return ''
 
     return working_path
+
+def list_directory(input_path, hidden=None):
+    ''' list directory under input_path, return list, else return []
+    '''
+
+    logger = logging.getLogger()
+
+    startpath = os.getcwd() if not input_path else input_path
+    if not os.path.isdir(startpath):
+        logger.info("显示目录树:文件夹不存在 %s",startpath)
+        return []
+
+    MAX_WIDTH = 100
+    print()
+    print('#' * MAX_WIDTH)
+    index = 1
+    menu_list = []
+    show_list = []
+    max_level = 0
+    for root, dirs, files in os.walk(startpath):
+        level = root.replace(startpath, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+
+        if os.path.basename(root)[:2] != '__':
+            _menu_item = '# {}. {}{}/'.format(index, indent, os.path.basename(root))
+            index += 1
+
+        # subindent = ' ' * 4 * (level + 1)
+        # for f in files:
+            # print('{}{}'.format(subindent, f))
+            if files:
+                file_word = 'Total {} files -> {}'.format(len(files), files[0])
+                separator = MAX_WIDTH - len(_menu_item) - len(file_word) - 2
+                _menu_item = _menu_item + ' ' + ' ' * separator + ' ' + file_word
+
+            menu_list.append({'root':root, 'dirs':dirs, 'files':files})
+            if hidden is not None:
+                if hidden not in _menu_item:
+                    #print(_menu_item)
+                    show_list.append({'item':_menu_item, 'level': level})
+            else:
+                #print(_menu_item)
+                show_list.append({'item':_menu_item, 'level': level})
+
+            max_level = level if max_level<level else max_level
+
+    for menu_display_item in show_list:
+        if menu_display_item['level'] == 1:
+            print()
+
+        print(menu_display_item['item'])
+
+    _menu_item = '# {}. {}{} (custom)/'.format(index, '', input_path)
+    menu_list.append({'root':input_path, 'dirs':[], 'files':[]})
+    print('#' * MAX_WIDTH)
+
+    return menu_list

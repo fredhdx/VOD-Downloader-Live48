@@ -55,14 +55,19 @@ def domain_prompt():
     while True:
         if choice == "1":
             domain = DOMAIN['SNH48']
+            break
         if choice == "2":
             domain = DOMAIN['GNZ48']
+            break
         elif choice == "3":
             domain = DOMAIN['BEJ48']
+            break
         elif choice == "4":
             domain = DOMAIN['SHY48']
+            break
         elif choice == "5":
             domain = DOMAIN['CKG48']
+            break
         elif choice == '0':
             press_to_exit()
         else:
@@ -110,7 +115,7 @@ def advanced_menu():
             showProjects()
             return 0
         elif choice == '3':
-            continueDownload(REDOWNLOAD=True)
+            result = reDownload()
             return 0
         elif choice == '4':
             mergeTs()
@@ -138,13 +143,13 @@ def snhlivedownloader():
         sys.exit()
     elif choice == '1': # 下载视频
         uri = uri_prompt()
-        downloadVideo(uri)
+        result = downloadVideo(uri)
     elif choice == '2': # 搜索
         domain = domain_prompt()
         search_pattern = search_prompt()
-        searchVideo(domain, search_pattern)
+        result = searchVideo(domain, search_pattern)
     elif choice == '3': # 断点续传
-        continueDownload()
+        result = continueDownload()
     elif choice == '4': # 遍历全站
         domain = domain_prompt()
         DOWNLOAD = False
@@ -153,7 +158,7 @@ def snhlivedownloader():
         # 是否下载M3U8
         logger.info("")
         logger.info("是否下载全部视频 | Download all videos on site? (默认：否 | Default: No)")
-        _choice_ = input("1. 否(no) 2. 是(yes)")
+        _choice_ = input("1. 否(no) 2. 是(yes)" + os.linesep)
         if _choice_ == '2':
             DOWNLOAD = True
             logger.info("选择：是(Yes)")
@@ -163,8 +168,9 @@ def snhlivedownloader():
 
         # 是否下载M3U8
         if not DOWNLOAD:
+            logger.info("")
             logger.info("是否下载M3U8 | Download M3U8? (默认：否 | Default: No)")
-            _choice_ = input("1. 否(no) 2. 是(yes)")
+            _choice_ = input("1. 否(no) 2. 是(yes)" + os.linesep)
             if _choice_ == '2':
                 M3U8 = True
                 logger.info("选择：是(Yes)")

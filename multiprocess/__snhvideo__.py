@@ -209,13 +209,18 @@ class Snh48Video:
             logger.info('All .ts files downloaded for: ' + self.fname)
 
             if index == len(self.ts_list) + 1:
-                with open(path + os.path.sep + self.fname, 'wb') as f:
-                    for ts in tsNames:
-                        with open(ts, 'rb') as mergefile:
-                            shutil.copyfileobj(mergefile, f)
-                        os.remove(ts)
-                    logger.info('%s merged', self.fname)
-                    return 0
+                try:
+                    with open(path + os.path.sep + self.fname, 'wb') as f:
+                        for ts in tsNames:
+                            with open(ts, 'rb') as mergefile:
+                                shutil.copyfileobj(mergefile, f)
+                            os.remove(ts)
+                        logger.info('%s merged', self.fname)
+                        return 0
+                except Exception as e:
+                    logger.info('Merge failed for %s', self.fname)
+                    logger.info(e)
+                    return -1
             else:
-                logger.info('Merge failed for %s', self.fname)
+                logger.info("Index %s does not match ts_list length %s" % (index - 1, len(self.ts_list)))
                 return -1

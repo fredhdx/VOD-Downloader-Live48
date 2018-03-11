@@ -10,7 +10,6 @@ import itertools
 from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
-import util
 
 import gevent.pool as pool
 import gevent.monkey

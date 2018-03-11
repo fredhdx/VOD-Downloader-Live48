@@ -2,8 +2,11 @@
 '''
 import logging
 import os
+import shutil
 from __utilities__ import setup_working_path
 from __utilities__ import press_to_exit
+from __utilities__ import list_directory
+from __variables__ import DOMAIN
 
 def prompt_resolution():
     ''' Prompt for resolution selection
@@ -64,13 +67,30 @@ def downloadVideo(uri, DOWNLOAD=True, M3U8=False):
     working_path = setup_working_path()
     resolution = prompt_resolution()
 
-    r = _download_one_video(uri, resolution, working_path)
-    if r == 0:
-        logger.info("下载完成 | Download finished")
-    else:
-        logger.info("下载失败 | Download failed")
+    if DOWNLOAD:
+        r = _download_one_video(uri, resolution, working_path)
+        if r == 0:
+            logger.info("下载完成 | Download finished")
+        else:
+            logger.info("下载失败 | Download failed")
+        return r
 
-    return r
+    elif M3U8:
+        from __HTTPrequests__ import _uri_to_video
+        video = _uri_to_video(uri)
+        if video:
+            video.set_res(resolution)
+            _result_getts = video.get_tslist()
+            if _result_getts == -1:
+                logger.info("__functions__ >> _download_one_video: 没有可用的m3u8列表，无法下载 | No available m3u8 list, downloading failed")
+                return -1
+            else:
+                _result_writets = video.write_tslist(working_path)
+                return _result_writets
+        else:
+            return -1
+    else:
+        return 0
 
 def downloadAllVideo(domain, DOWNLOAD=False, M3U8=False):
     ''' Scrape all videos on domain, when DOWNLOAD == True, download them all (this is likely to
@@ -91,7 +111,7 @@ def downloadAllVideo(domain, DOWNLOAD=False, M3U8=False):
     resolution = prompt_resolution()
 
     allVideoInfoList = get_siteVideoList(domain)[0]
-    urls = [videoInfo['site_url'] for videoInfo in allVideoInfoList]
+    urls = [videoInfo['site_url'] for videoInfo in allVideoInfoList if videoInfo]
 
     if DOWNLOAD or M3U8:
         from __HTTPrequests__ import get_batch_M3U8
@@ -108,6 +128,10 @@ def downloadAllVideo(domain, DOWNLOAD=False, M3U8=False):
             logger.info("开始逐个下载")
             for video in VideoObjects:
                 video.download(working_path)
+                video.write_tslist(working_path)
+        else:
+            for video in VideoObjects:
+                video.write_tslist(working_path)
 
         return VideoObjects
     else:
@@ -154,16 +178,24 @@ def searchVideo(domain, keyword):
 def continueDownload(REDOWNLOAD=False):
     ''' Continue your previous download, when REDOWNLOAD == True, erase original copies
     '''
+    from __HTTPrequests__ import _uri_to_video
+
     logger = logging.getLogger()
-    logger.info(__name__)
-global LOGGER
-    menu_list = list_directory(path, hidden="tmp")
+    logger.info()
+
+    if REDOWNLOAD:
+        logger.info("开始重新下载 | Start re-downloading")
+    else:
+        logger("开始继续下载 | Start Continuing downloading")
+
+    working_path = setup_working_path()
+    menu_list = list_directory(working_path, hidden="tmp")
 
     _chosen = ""
     while True:
         choice = input("请选择'清晰度'层级,如: gaoqing\n选择文件夹 (选 0 退出):")
         if choice == '0':
-            MyExit()
+            return 0
         elif choice in [str(i) for i in range(1, len(menu_list))]:
             _chosen = menu_list[int(choice)-1]['root']
             break
@@ -180,90 +212,164 @@ global LOGGER
                 if "resolution" in line:
                     res = line.split(": ")[1].strip()
 
-            LOGGER.info("为《%s》找到链接：%s at %s", _chosen.split(os.path.sep)[-2], url, res)
+            logger.info("为《%s》找到链接：%s at %s", _chosen.split(os.path.sep)[-2], url, res)
+            logger.info("found info《%s》：%s at %s", _chosen.split(os.path.sep)[-2], url, res)
     else:
-        LOGGER.info("没找到《%s》info.txt信息文件，请检查已下载部分是否存在\n"
+        logger.info("没找到《%s》info.txt信息文件，请检查已下载部分是否存在" + os.linesep
               , _chosen.split(os.path.sep)[-2])
-        MyExit()
+        logger.info("Fail to find《%s》info.txt，please check" + os.linesep)
+        return -1
 
     # 检查网址正确
     valid_url = False
-    for site_url in [SNH48LIVE_API,BEJ48LIVE_API,CKG48LIVE_API,GNZ48LIVE_API,SHY48LIVE_API]:
+    for site_url in list(DOMAIN.values()):
         valid_url = valid_url or site_url in url
     if not valid_url:
-        LOGGER.info("断点续传: 没找到《%s》有效链接，请手动输入网址\n", _chosen.split(os.path.sep)[-2])
-        MyExit()
+        logger.info("断点续传: 没找到《%s》有效链接，请手动输入网址\n", _chosen.split(os.path.sep)[-2])
+        logger.info("Continue Download, invalid site url input.")
+        return -1
 
     # 检查已下载文件名和远程文件名
-    parsed = _get_downloadable_from_url(url, res)
-    parsed_fname = parsed['fname']
-    if parsed_fname != _chosen.split(os.path.sep)[-2]:
-        LOGGER.info("断点续传：已存在视频和远程视频不一致")
-        LOGGER.info("------------------  有可能覆盖错误视频")
-        LOGGER.info("请检查info.txt中的网址是否指向目标视频")
-        LOGGER.info("已存在：%s", _chosen.split(os.path.sep)[-2])
-        LOGGER.info("远程文件：%s", parsed_fname)
-        print("返回")
-        MyExit()
+    tmp_video = _uri_to_video(url)
+    if not tmp_video:
+        logger.info("继续下载 | Continue Download >> 解析url失败")
+        return -1
+
+    if tmp_video.fname != _chosen.split(os.path.sep)[-2]:
+        logger.info("断点续传：已存在视频和远程视频不一致")
+        logger.info("------------------  有可能覆盖错误视频")
+        logger.info("请检查info.txt中的网址是否指向目标视频")
+        logger.info("已存在：%s", _chosen.split(os.path.sep)[-2])
+        logger.info("远程文件：%s", tmp_video.fname)
+        logger.info("Remote filename does not match existing filename")
+        logger.info("返回 | Return to menu")
+        return -1
 
     # 检查临时文件
     tmp_path = _chosen + os.path.sep + "tmp"
     if not os.path.isdir(tmp_path):
-        LOGGER.info("%s不包含tmp文件夹, 开始新下载", _chosen.replace(os.getcwd(),''))
+        logger.info("%s不包含tmp文件夹, 开始新下载", _chosen.replace(os.getcwd(),''))
+        logger.info("/tmp not exist, start new download")
     else:
         tmp_files = [name for name in os.listdir(tmp_path) if os.path.isfile(os.path.join(tmp_path, name))]
 
         if len([name for name in tmp_files if name.endswith('.ts')]) == 0:
-            LOGGER.info("没找到ts临时文件，开始新下载\n")
+            logger.info("没找到ts临时文件，开始新下载")
+            logger.info("No .ts files found in /tmp, start new download")
         else:
-            LOGGER.info(_chosen.replace(os.getcwd(),''))
+            logger.info(_chosen.replace(os.getcwd(),''))
             if REDOWNLOAD:
-                choice = input("警告：重新下载《%s》-%s 视频将删除tmp文件夹所有下载片段\n1.继续 2.退出(默认) "
-                            % (_chosen.split(os.path.sep)[-2], res))
+                logger.info("警告：重新下载《%s》-%s 视频将删除tmp文件夹所有下载片段" % (_chosen.split(os.path.sep)[-2], res))
+                logger.info("Warning: REDOWNLOAD selected. .ts files in /tmp will be deleted.")
+                choice = input("1.继续 (Continue) 2.退出 (默认) (Exit: Default) ")
                 if choice == '1':
                     tmp_files = [os.path.join(tmp_path,name) for name in tmp_files]
                     for _file in tmp_files:
                         try:
                             os.remove(_file)
                         except OSError as e:
-                            LOGGER.info(e)
-                            press_to_exit()
-                    LOGGER.info("tmp文件夹已清空")
+                            logger.info(e)
+                            return -1
+                    logger.info("/tmp文件夹已清空")
+                    logger.info("/tmp directory is cleared")
                 else:
-                    MyExit()
+                    return 0
+            else:
+                return 0
 
-    return [url, res]
+    # url, res in tmp_video
+    tmp_video.set_res(res)
+    tmp_video.download(working_path)
+    result_ts = tmp_video.get_tslist()
 
-
-    return
+    if result_ts == -1:
+        logger.info("__functions__ >> continueDownload: 没有可用的m3u8列表，无法下载 | No available m3u8 list, downloading failed")
+        return -1
+    else:
+        result = tmp_video.download(working_path)
+        return result
 
 def downloadM3U8(uri):
     ''' Download M3U8 for a single video
     '''
-    logger = logging.getLogger()
-    downloadVideo(uri, DOWNLOAD=False, M3U8=False)
-    logger.info(__name__)
-    return
+    result = downloadVideo(uri, DOWNLOAD=False, M3U8=True)
+    return result
 
 def showProjects():
     ''' Display existing projects by showing directory
     '''
     logger = logging.getLogger()
-    logger.info(__name__)
-    input("1. 返回 2. 退出")
-    return
+    logger.info("")
+    working_path = setup_working_path()
+
+    list_directory(working_path)
+    choice = input("1. 返回 (Home), 默认 (Default) 2. 退出 (Exit)")
+    if choice == '2':
+        press_to_exit()
+
+    return 0
 
 def reDownload():
     ''' Redownload existing
     '''
-    logger = logging.getLogger()
-    logger.info(__name__)
-    continueDownload(REDOWNLOAD=True)
-    return
+    r = continueDownload(REDOWNLOAD=True)
+    return r
 
 def mergeTs():
     ''' Merge existing project' ts files into one single ts file
     '''
     logger = logging.getLogger()
-    logger.info(__name__)
-    return
+    working_path = setup_working_path()
+
+
+    logger.info("手动合并ts文件,请选择工作文件夹")
+    logger.info("Merging existing .ts files. Please select a target folder")
+    menu_list = list_directory(working_path)
+
+    while True:
+        choice = input("选择文件夹 (选 0 返回) | Please select (0. Return Home): ")
+        if choice == '0': return 0
+        elif choice in [str(i) for i in range(1, len(menu_list))]:
+            _chosen = menu_list[int(choice)-1]['root']
+
+            if not _chosen.endswith('tmp'):
+                    print("错误，目前仅支持合并/tmp文件夹")
+                    print("Error, only supporting merge /tmp directories")
+                    continue
+
+            empty = '1'
+            for fn in os.listdir(_chosen):
+                if fn.endswith('.ts'):
+                    empty = '0'
+
+            if empty == '1':
+                print("警告:文件夹不包含任何.ts文件 -> 重新选择")
+                print("Warning: no .ts file in folder -> re-select")
+                continue
+
+            logger.info("选择 (selected)：%s", _chosen.replace(os.getcwd(), ''))
+            working_path = _chosen
+            break
+
+    # 开始合并
+    if working_path == '':
+        logger.info("路径错误: %s", working_path)
+        logger.info("Invalid path, return")
+        return -1
+
+    try:
+        files = [f for f in os.listdir(working_path) if f.endswith('.ts')]
+        tsNames = sorted(files, key=lambda f: int(f.split('.')[0]))
+        title = working_path.split(os.path.sep)[-3]
+        with open(os.path.sep.join(working_path.split(os.path.sep)[:-1]) + os.path.sep + title + '.ts', 'wb') as f:
+            for ts in tsNames:
+                with open(working_path + os.path.sep + ts, 'rb') as mergefile:
+                    shutil.copyfileobj(mergefile, f)
+                # os.remove(ts)
+            logger.info('%s merged',title)
+    except Exception as e:
+        logger.info("__functions__ >> merge_ts()")
+        logger.info(e)
+        return -1
+
+    return 0
