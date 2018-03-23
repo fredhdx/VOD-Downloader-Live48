@@ -439,7 +439,7 @@ def _continue_download(path, REDOWNLOAD=False):
 
     # 检查网址正确
     valid_url = False
-    for site_url in [SNH48LIVE_API,BEJ48LIVE_API,CKG48LIVE_API,GNZ48LIVE_API,SHY48LIVE_API]:
+    for site_url in [SNH48LIVE_API,BEJ48LIVE_API,CKG48LIVE_API,GNZ48LIVE_API,SHY48LIVE_API, "http://zhibo.ckg48.com/"]:
         valid_url = valid_url or site_url in url
     if not valid_url:
         LOGGER.info("断点续传: 没找到《%s》有效链接，请手动输入网址\n", _chosen.split(os.path.sep)[-2])

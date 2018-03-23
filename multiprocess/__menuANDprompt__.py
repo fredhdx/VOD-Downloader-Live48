@@ -62,6 +62,34 @@ def promptForSearch():
 
     return search_pattern
 
+def promptForResolution():
+    ''' helper: ask user to choose a video resolution, return a resolution string
+    '''
+
+    logger = logging.getLogger()
+    logger.info("")
+    logger.info("请选择清晰度 | Please select downloading resolution")
+    choice = input("1.超清 (chaoqing) 2.高清 (gaoqing) 3.流畅 (liuchang) 0.退出 (Exit)")
+    res = "liuchang" # default value
+
+    while True:
+        if choice == '1':
+            res = 'chaoqing'
+            break
+        elif choice == '2':
+            res == 'gaoqing'
+            break
+        elif choice == '3':
+            res == 'liuchang'
+            break
+        elif choice == '0':
+            press_to_exit()
+        else:
+            logger.info("无效选择 | Invalid choice")
+            continue
+
+    return res
+
 def promptForBinary(question, default_value):
     ''' helper: ask user to provide a binary answer for question, return True or False
                 question should be a string, default_value should be a bool

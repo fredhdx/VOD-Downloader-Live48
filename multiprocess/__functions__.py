@@ -8,31 +8,24 @@ from __utilities__ import press_to_exit
 from __utilities__ import list_directory
 from __variables__ import DOMAIN
 
-def prompt_resolution():
-    ''' Prompt for resolution selection
+from __snhvideo__ import Snh48Video
+from __menuANDprompt__ import promptForResolution
+
+def _uri_to_video(uri):
+    ''' make a request to uri, create corresponding SnhVideo object
+        return video on success, None on failure
     '''
-
-    logger = logging.getLogger()
-
-    logger.info("请选择清晰度 | Please select downloading resolution")
-    choice = input("1.超清 (chaoqing) 2.高清 (gaoqing) 3.流畅 (liuchang) 0.退出 (Exit)")
-
-    while True:
-        if choice == '1':
-            choice = 'chaoqing'
-            break
-        elif choice == '2':
-            choice == 'gaoqing'
-            break
-        elif choice == '3':
-            choice == 'liuchang'
-            break
-        elif choice == '0':
-            press_to_exit()
+    r = _make_HTTPrequests(uri, "__HTTPrequests__ >> _uri_to_vdeo")
+    if r:
+        soup = BeautifulSoup(r.text, 'lxml')
+        _video_ = Snh48Video()
+        parsed = parse_siteurl_deep(soup)
+        if parsed:
+            _video_.update(parsed)
+            return _video_
         else:
-            continue
+            return None
 
-    return choice
 
 def _download_one_video(uri, resolution, working_path):
     ''' Wrapper function: download 1 video with resolution and working_path

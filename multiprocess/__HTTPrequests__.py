@@ -1,3 +1,8 @@
+''' HTTP requests library for snhlivedownloader
+        + This custom library handles http requests, grab data, and send it off for processing
+        + Both single process methods and gevent methods are written for different scenario
+'''
+
 from bs4 import BeautifulSoup
 import gevent.pool as pool
 import gevent.monkey
@@ -11,9 +16,9 @@ import time
 
 from __variables__ import HEADER
 from __variables__ import CONNECTION_TIMEOUT
+from __variables__ import RECONNECTION_TIME
 from __variables__ import ERROR_CONNECTION_TIMEOUT, ERROR_STATUS_CODE, ERROR_CONNECTION_TRIALLIMIT
 
-from __snhvideo__ import Snh48Video
 from __utilities__ import timefunc
 
 from __parsing__ import parse_soup_basic
@@ -22,31 +27,37 @@ from __parsing__ import parse_siteurl_deep
 from __variables__ import GREENLET_SIZE
 
 
-def _make_HTTPrequests(uri, func_name):
-    ''' Using requests.get to make a HTTP get requests, return response if r.status_code == 200
-            else return None on any error
+def _make_HTTPrequest(uri, func_name):
+    ''' helper: make a http request, return a valid response object/None object.
+                Timeout handling: yes. Attempt to reconnect until custom timeout.
+                Exception handling:
+                    1) no response/timeout: return None, log exception info
+                    2) non-200 status_code: return None, log status code
     '''
     logger = logging.getLogger()
-
     start_time = time.time()
+
+    # make http request
     while True:
         try:
-            r = requests.get(uri % '1', headers=HEADER)
+            r = requests.get(uri, headers=HEADER)
             break
         except requests.ConnectionError:
             if time.time() > start_time + CONNECTION_TIMEOUT:
-                logger.info("Error: %s" % func_name)
+                logger.info("HTTP request error:")
                 logger.info(ERROR_CONNECTION_TIMEOUT % (uri, CONNECTION_TIMEOUT))
+                logger.info("   - request involked by %s", func_name)
                 return None
             else:
-                time.sleep(1)
+                time.sleep(RECONNECTION_TIME)
 
+    # valid response, analyze return status
     if r.status_code == 200:
         return r
     else:
-        logger.info("Error: %s" % func_name)
-        logger.info(uri)
-        logger.info(ERROR_STATUS_CODE % r.status_code)
+        logger.info("HTTP request error:")
+        logger.info(ERROR_STATUS_CODE % (uri, r.status_code))
+        logger.info("   - request involked by %s", func_name)
         return None
 
 def _request_ts_from_uri(m3u8_url):
@@ -200,21 +211,6 @@ def get_batch_M3U8(videoObjects, resolution):
     s.close()
 
     return results
-
-def _uri_to_video(uri):
-    ''' make a request to uri, create corresponding SnhVideo object
-        return video on success, None on failure
-    '''
-    r = _make_HTTPrequests(uri, "__HTTPrequests__ >> _uri_to_vdeo")
-    if r:
-        soup = BeautifulSoup(r.text, 'lxml')
-        _video_ = Snh48Video()
-        parsed = parse_siteurl_deep(soup)
-        if parsed:
-            _video_.update(parsed)
-            return _video_
-        else:
-            return None
 
 def _urls_to_videos(urls):
     ''' a list of urls >> a list of SnhVideo objects, might contain None objects

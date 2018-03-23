@@ -1,5 +1,4 @@
 # SYSTEM VARIABLES/系统变量
-
 HEADER = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) \
     AppleWebKit/537.36 (KHTML, like Gecko) \
@@ -16,6 +15,7 @@ DOMAIN = {
 
 GREENLET_SIZE = 100
 CONNECTION_TIMEOUT = 90
+RECONNECTION_TIME = 1
 
 # MENU VARIABLES/菜单项变量
 RESOLUTION = 'liuchang' # video resolution/清晰度
@@ -24,7 +24,7 @@ RESOLUTION = 'liuchang' # video resolution/清晰度
 MAIN_PAGE_API = '/index/index/p/%s.html'
 TRIALLIMIT_PER_PAGE = 10
 
-# DEBUG/诊断
-ERROR_STATUS_CODE = "Requests error, status_code: %s"
-ERROR_CONNECTION_TIMEOUT = "Unable to connect to %s after %s seconds of ConnectionErrors"
+# HTTP DEBUG INFO/HTTP 诊断信息
+ERROR_STATUS_CODE = "Invalid status_code from %s: %s"
+ERROR_CONNECTION_TIMEOUT = "Unable to connect to %s after %s seconds."
 ERROR_CONNECTION_TRIALLIMIT = "Unable to connect to %s after %s trial times"
