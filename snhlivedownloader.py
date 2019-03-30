@@ -44,11 +44,11 @@ SINGLE_CONTINUE = '0'
 RE_DOWNLOAD = '0'
 DOWNLOAD = '1'
 RESOLUTION = 'chaoqing'
-SNH48LIVE_API = "http://live.snh48.com"
-GNZ48LIVE_API = "http://live.gnz48.com"
-BEJ48LIVE_API = "http://live.bej48.com"
-SHY48LIVE_API = "http://live.shy48.com"
-CKG48LIVE_API = "http://live.ckg48.com"
+SNH48LIVE_API = "http://live.48.cn/Index/main/club/1"
+GNZ48LIVE_API = "http://live.48.cn/Index/main/club/3"
+BEJ48LIVE_API = "http://live.48.cn/Index/main/club/2"
+SHY48LIVE_API = "http://live.48.cn/Index/main/club/4"
+CKG48LIVE_API = "http://live.48.cn/Index/main/club/5"
 
 # 是否为每个视频解析ts地址
 M3U8 = '0'
@@ -230,6 +230,7 @@ class snh48_video:
                     while True:
                         try:
                             r = requests.get(ts_file['ts_url'], stream=True)
+                            print(ts_file['ts_url'])
                             break
                         except requests.ConnectionError:
                             if time.time() > start_time + CONNECTION_TIMEOUT:
@@ -238,6 +239,7 @@ class snh48_video:
                             else:
                                 time.sleep(1)
 
+                    print(r.status_code)
                     if r.status_code == 200:
                         with open(tmp_name, 'wb') as f:
                             for chunk in r.iter_content(chunk_size=512 * 1024):
@@ -401,7 +403,8 @@ def _get_ts_from_m3u8(m3u8_url):
             if "http" in rel_link:
                 ts_list.append({'EXTINF':text[i], 'ts_url':rel_link})
             else:
-                ts_list.append({'EXTINF':text[i], 'ts_url':base_uri + '/' + rel_link})
+                # ts_list.append({'EXTINF':text[i], 'ts_url':base_uri + rel_link})
+                ts_list.append({'EXTINF':text[i], 'ts_url':'https://ts.48.cn' + rel_link})
 
     return ts_list
 
@@ -440,7 +443,8 @@ def _continue_download(path, REDOWNLOAD=False):
     # 检查网址正确
     valid_url = False
     for site_url in [SNH48LIVE_API,BEJ48LIVE_API,CKG48LIVE_API,GNZ48LIVE_API,SHY48LIVE_API]:
-        valid_url = valid_url or site_url in url
+        test_url = site_url.replace('main', 'invedio').replace('http', 'https')
+        valid_url = valid_url or test_url in url
     if not valid_url:
         LOGGER.info("断点续传: 没找到《%s》有效链接，请手动输入网址\n", _chosen.split(os.path.sep)[-2])
         MyExit()
@@ -781,7 +785,7 @@ def spider_snhLive():
         video_list = []
         for i in range(PAGE_START,num+1):
             LOGGER.info("开始解析第%d页", i)
-            page_url = site_url + '/index/index/p/' + str(i) + '.html'
+            page_url = site_url + '/p/' + str(i) + '.html'
             r = requests.get(page_url, headers=HEADER)
             page_html = etree.HTML(r.text)
 
@@ -802,7 +806,7 @@ def spider_snhLive():
                     continue
                 progressbar(index,len(page_list),"第%d页 第%d视频" % (i,index))
                 video_img = video.xpath('.//img/@src')[0]
-                video_url = site_url + video.xpath('.//a/@href')[0]
+                video_url = 'https://live.48.cn' + video.xpath('.//a/@href')[0]
                 parsed = _get_downloadable_from_url(video_url, RESOLUTION)
 
                 if bool(parsed):
